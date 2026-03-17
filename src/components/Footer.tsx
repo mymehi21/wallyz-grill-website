@@ -75,10 +75,9 @@ export default function Footer({ currentPage = 'home' }: { currentPage?: string 
           <p className="text-gray-400 mb-3">
             &copy; {new Date().getFullYear()} Wallyz Grill. All rights reserved.
           </p>
-          <div className="flex items-center justify-center space-x-2">
+          <div className="flex items-center justify-center space-x-1">
             <span className="text-gray-500 text-sm">Powered by</span>
-            <span className="text-orange-500 hover:text-orange-400 transition-colors text-sm">MX Studios</span>
-            <img src="/CompanyLogo.png" alt="MX Studios" className="h-5 opacity-60 hover:opacity-100 transition-opacity" />
+            <span className="text-orange-500 font-semibold text-sm tracking-wide">MX Studios</span>
           </div>
         </div>
       </div>
