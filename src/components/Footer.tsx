@@ -57,7 +57,7 @@ export default function Footer({ currentPage = 'home' }: { currentPage?: string 
                 <span>@Wallyzgrill</span>
               </a>
               <a
-                href="https://tiktok.com/@Wallyzgrill"
+                href="https://tiktok.com/@wallyz_grill"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center space-x-3 text-gray-300 hover:text-orange-500 transition-colors"
