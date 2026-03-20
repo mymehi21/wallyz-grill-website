@@ -25,11 +25,19 @@ export default function Contact() {
   ]);
 
   useEffect(() => {
-    supabase.from('site_settings').select('setting_value').eq('setting_key', 'business_hours').maybeSingle()
-      .then(({ data }) => {
-        if (data?.setting_value) try { setHours(JSON.parse(data.setting_value)); } catch {}
-      });
-  }, []);
+    const fetchHours = async () => {
+      const key = `business_hours_${selectedLocation.id}`;
+      const { data } = await supabase
+        .from('site_settings')
+        .select('setting_value')
+        .eq('setting_key', key)
+        .maybeSingle();
+      if (data?.setting_value) {
+        try { setHours(JSON.parse(data.setting_value)); } catch {}
+      }
+    };
+    fetchHours();
+  }, [selectedLocation.id]);
 
   return (
     <section id="contact" className="py-20 bg-gradient-to-br from-black via-gray-900 to-black text-white">

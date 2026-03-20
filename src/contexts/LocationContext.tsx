@@ -36,7 +36,6 @@ const defaultLocations: Location[] = [
     cloverMerchantId: '526493229888',
     cloverApiToken: 'b92256f2-54bd-75d3-394e-f13c76b59ae4',
     directions: 'https://maps.google.com/?q=25575+5+Mile+Rd,+Redford,+MI+48239',
-    comingSoon: true
   }
 ];
 
