@@ -20,21 +20,50 @@ function App() {
 function AdminRoute() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
+  const [adminUser, setAdminUser] = useState<{ email: string; name: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    checkAuth();
+    // Check existing session on load
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session?.user) {
+        setIsAuthenticated(true);
+        fetchAdminProfile(data.session.user.id, data.session.user.email || '');
+      }
+      setLoading(false);
+    });
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setIsAuthenticated(true);
+        fetchAdminProfile(session.user.id, session.user.email || '');
+      } else {
+        setIsAuthenticated(false);
+        setAdminUser(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const checkAuth = async () => {
-    const { data } = await supabase.auth.getSession();
-    setIsAuthenticated(!!data.session);
-    setLoading(false);
+  const fetchAdminProfile = async (userId: string, email: string) => {
+    const { data } = await supabase
+      .from('admin_users')
+      .select('full_name, email')
+      .eq('id', userId)
+      .maybeSingle();
+    
+    setAdminUser({
+      email: email,
+      name: data?.full_name || email.split('@')[0],
+    });
   };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setIsAuthenticated(false);
+    setAdminUser(null);
   };
 
   if (loading) {
@@ -57,14 +86,14 @@ function AdminRoute() {
             onClick={() => setShowSetup(true)}
             className="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm border border-orange-500 shadow-lg"
           >
-            Setup Admin Account
+            Create Admin Account
           </button>
         </div>
       </div>
     );
   }
 
-  return <AdminDashboard onLogout={handleLogout} />;
+  return <AdminDashboard onLogout={handleLogout} adminUser={adminUser} />;
 }
 
 export default App;

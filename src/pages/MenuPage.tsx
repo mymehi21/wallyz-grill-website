@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { ShoppingCart, MapPin, UtensilsCrossed } from 'lucide-react';
+import { ShoppingCart, MapPin, UtensilsCrossed, Clock } from 'lucide-react';
 import { useCart } from '../contexts/CartContext';
 import { useLocation } from '../contexts/LocationContext';
 import { supabase, MenuItem, MenuCategory } from '../lib/supabase';
 import MenuItemCustomizer, { Customization } from '../components/MenuItemCustomizer';
+import { fetchHoursForLocation, isRestaurantOpen, formatHour, BusinessHour } from '../utils/hoursUtils';
 
 interface MenuPageProps {
   onNavigate: (page: string) => void;
@@ -16,10 +17,22 @@ export default function MenuPage({ onNavigate }: MenuPageProps) {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
+  const [hours, setHours] = useState<BusinessHour[]>([]);
+  const [isOpen, setIsOpen] = useState(true);
+  const [closedMessage, setClosedMessage] = useState('');
 
   useEffect(() => {
     fetchMenuData();
   }, []);
+
+  useEffect(() => {
+    fetchHoursForLocation(selectedLocation.id, supabase).then(h => {
+      setHours(h);
+      const { open, message } = isRestaurantOpen(h);
+      setIsOpen(open);
+      setClosedMessage(message);
+    });
+  }, [selectedLocation.id]);
 
   const fetchMenuData = async () => {
     try {
@@ -136,6 +149,30 @@ export default function MenuPage({ onNavigate }: MenuPageProps) {
               <p className="text-gray-300 mt-2">
                 Please select our Oak Park location to place pickup orders.
               </p>
+            </div>
+          )}
+
+          {/* Hours banner */}
+          {hours.length > 0 && (
+            <div className={`rounded-lg p-4 mb-8 border ${isOpen ? 'bg-green-500 bg-opacity-10 border-green-500' : 'bg-red-500 bg-opacity-10 border-red-500'}`}>
+              <div className="flex items-center gap-3 mb-3">
+                <Clock className={isOpen ? 'text-green-400' : 'text-red-400'} size={20} />
+                <span className={`font-semibold text-lg ${isOpen ? 'text-green-400' : 'text-red-400'}`}>
+                  {isOpen ? '🟢 We\'re Open Now' : '🔴 Currently Closed'}
+                </span>
+              </div>
+              {!isOpen && <p className="text-gray-300 text-sm mb-3">{closedMessage}</p>}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {hours.map(h => (
+                  <div key={h.day} className="text-xs">
+                    <span className="text-gray-400 font-semibold">{h.day.slice(0, 3)}: </span>
+                    {h.closed
+                      ? <span className="text-red-400">Closed</span>
+                      : <span className="text-gray-300">{formatHour(h.open)} – {formatHour(h.close)}</span>
+                    }
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 

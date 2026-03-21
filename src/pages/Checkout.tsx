@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useCart } from '../contexts/CartContext';
 import { useLocation } from '../contexts/LocationContext';
 import { supabase } from '../lib/supabase';
-import { CreditCard, ShoppingBag, CheckCircle, XCircle } from 'lucide-react';
+import { CreditCard, ShoppingBag, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { fetchHoursForLocation, isRestaurantOpen, BusinessHour } from '../utils/hoursUtils';
 
 interface CheckoutProps {
   onNavigate: (page: string) => void;
@@ -15,6 +16,8 @@ export default function Checkout({ onNavigate }: CheckoutProps) {
   const [step, setStep] = useState<'info' | 'payment'>('info');
   const [savedOrderId, setSavedOrderId] = useState<string | null>(null);
   const [orderResult, setOrderResult] = useState<'success' | 'failed' | null>(null);
+  const [hours, setHours] = useState<BusinessHour[]>([]);
+  const [closedMessage, setClosedMessage] = useState('');
 
   const [formData, setFormData] = useState({
     customer_name: '',
@@ -26,24 +29,27 @@ export default function Checkout({ onNavigate }: CheckoutProps) {
 
   const [errors, setErrors] = useState<Record<string, boolean>>({});
 
-  // Handle redirect back from Clover payment page
+  useEffect(() => {
+    fetchHoursForLocation(selectedLocation.id, supabase).then(h => {
+      setHours(h);
+      const { open, message } = isRestaurantOpen(h);
+      if (!open) setClosedMessage(message);
+    });
+  }, [selectedLocation.id]);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('order_success') === 'true') {
       const orderId = params.get('order_id');
       setOrderResult('success');
-      if (orderId) handlePaymentSuccess(orderId);
+      if (orderId) supabase.from('pickup_orders').update({ status: 'paid' }).eq('id', orderId);
+      clearCart();
       window.history.replaceState({}, '', window.location.pathname);
     } else if (params.get('order_failed') === 'true') {
       setOrderResult('failed');
       window.history.replaceState({}, '', window.location.pathname);
     }
   }, []);
-
-  const handlePaymentSuccess = async (orderId: string) => {
-    await supabase.from('pickup_orders').update({ status: 'paid' }).eq('id', orderId);
-    clearCart();
-  };
 
   const validateForm = () => {
     const newErrors: Record<string, boolean> = {};
@@ -63,9 +69,16 @@ export default function Checkout({ onNavigate }: CheckoutProps) {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Step 1: Save order info
   const handleInfoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Check if restaurant is open
+    const { open, message } = isRestaurantOpen(hours);
+    if (!open) {
+      alert(message || 'The restaurant is currently closed. Please try again during business hours.');
+      return;
+    }
+
     if (!validateForm()) return;
     if (cart.length === 0) { alert('Your cart is empty'); return; }
     setSubmitting(true);
@@ -88,7 +101,6 @@ export default function Checkout({ onNavigate }: CheckoutProps) {
     }
   };
 
-  // Step 2: Send order to Clover via secure Edge Function and redirect to payment
   const handlePayWithClover = async () => {
     if (!savedOrderId) return;
     setSubmitting(true);
@@ -109,28 +121,23 @@ export default function Checkout({ onNavigate }: CheckoutProps) {
 
       if (error) throw error;
 
-      // Update DB with Clover order ID
       if (data?.cloverOrderId) {
         await supabase.from('pickup_orders')
           .update({ clover_order_id: data.cloverOrderId, status: 'confirmed' })
           .eq('id', savedOrderId);
       }
 
-      // Redirect to Clover payment page
       if (data?.checkoutUrl) {
         window.location.href = data.checkoutUrl;
         return;
       }
 
-      // If no checkout URL, still send email and confirm
       await sendConfirmationEmail();
       alert('Order placed! Check your email for confirmation.');
       clearCart();
       onNavigate('home');
-
     } catch (error) {
       console.error('Order error:', error);
-      // Still save the order — don't leave customer hanging
       await supabase.from('pickup_orders').update({ status: 'confirmed' }).eq('id', savedOrderId);
       await sendConfirmationEmail();
       alert('Order placed! We will contact you to confirm. Check your email.');
@@ -158,7 +165,6 @@ export default function Checkout({ onNavigate }: CheckoutProps) {
     });
   };
 
-  // Show success screen after payment redirect
   if (orderResult === 'success') {
     return (
       <section className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black text-white py-20 pt-28">
@@ -211,12 +217,28 @@ export default function Checkout({ onNavigate }: CheckoutProps) {
     );
   }
 
+  // Show closed banner if restaurant is closed
+  if (closedMessage && step === 'info') {
+    return (
+      <section className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black text-white py-20 pt-28">
+        <div className="container mx-auto px-4">
+          <div className="max-w-lg mx-auto text-center">
+            <Clock size={80} className="text-orange-500 mx-auto mb-6" />
+            <h1 className="text-4xl font-bold mb-4">We're Currently Closed</h1>
+            <p className="text-gray-300 text-lg mb-8">{closedMessage}</p>
+            <button onClick={() => onNavigate('menu')} className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-3 rounded-lg font-semibold transition-colors">
+              Back to Menu
+            </button>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black text-white py-20 pt-28">
       <div className="container mx-auto px-4">
         <div className="max-w-3xl mx-auto">
-
-          {/* Step indicators */}
           <div className="flex items-center gap-4 mb-8">
             <div className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold ${step === 'info' ? 'bg-orange-500 text-white' : 'bg-green-500 text-white'}`}>
               <span>{step === 'info' ? '1' : '✓'}</span> Your Info
@@ -229,8 +251,6 @@ export default function Checkout({ onNavigate }: CheckoutProps) {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2">
-
-              {/* Step 1 */}
               {step === 'info' && (
                 <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
                   <h2 className="text-2xl font-bold mb-6">Your Information</h2>
@@ -273,12 +293,10 @@ export default function Checkout({ onNavigate }: CheckoutProps) {
                 </div>
               )}
 
-              {/* Step 2 */}
               {step === 'payment' && (
                 <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
                   <h2 className="text-2xl font-bold mb-2">Payment</h2>
                   <p className="text-gray-400 mb-6">Click below to pay securely. Your order will be sent to the restaurant immediately after payment.</p>
-
                   <div className="bg-gray-900 rounded-lg p-4 mb-6 border border-gray-700">
                     <p className="text-sm text-gray-400 mb-2">Order for:</p>
                     <p className="text-white font-semibold">{formData.customer_name}</p>
@@ -287,22 +305,18 @@ export default function Checkout({ onNavigate }: CheckoutProps) {
                     {formData.pickup_time && <p className="text-orange-400 text-sm mt-1">Pickup: {formData.pickup_time}</p>}
                     {formData.special_instructions && <p className="text-gray-400 text-sm mt-1">Notes: {formData.special_instructions}</p>}
                   </div>
-
                   <div className="bg-orange-500 bg-opacity-10 border border-orange-500 rounded-lg p-4 mb-8">
                     <div className="flex justify-between items-center">
                       <span className="text-white font-semibold text-lg">Total Due:</span>
                       <span className="text-orange-500 font-bold text-2xl">${cartTotal.toFixed(2)}</span>
                     </div>
                   </div>
-
                   <button onClick={handlePayWithClover} disabled={submitting}
                     className="w-full bg-orange-500 hover:bg-orange-600 text-white py-4 rounded-lg font-bold text-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-3">
                     <CreditCard size={24} />
                     {submitting ? 'Sending to restaurant...' : `Pay $${cartTotal.toFixed(2)} Securely`}
                   </button>
-
                   <p className="text-center text-gray-500 text-sm mt-3">🔒 Secured by Clover Payments</p>
-
                   <button onClick={() => setStep('info')} className="w-full mt-4 text-gray-400 hover:text-white text-sm transition-colors py-2">
                     ← Back to Edit Info
                   </button>
@@ -310,7 +324,6 @@ export default function Checkout({ onNavigate }: CheckoutProps) {
               )}
             </div>
 
-            {/* Order Summary sidebar */}
             <div className="lg:col-span-1">
               <div className="bg-gray-800 rounded-lg p-6 border border-orange-500 sticky top-24">
                 <h3 className="text-xl font-bold mb-4">Order Summary</h3>

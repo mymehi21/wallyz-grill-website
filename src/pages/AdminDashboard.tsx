@@ -5,19 +5,24 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import ViewModeSelector, { ViewMode } from '../components/ViewModeSelector';
 import { groupItemsByDate, sortDateGroups, getFormattedTime, formatTimeTo12Hour } from '../utils/dateUtils';
 import MenuManagement from '../components/MenuManagement';
+import SuperAdminPanel from '../components/SuperAdminPanel';
 
 const LOCATIONS = [
   { id: 'location1', name: 'Oak Park', db_id: 'location1' },
   { id: 'location2', name: 'Redford', db_id: 'location2' },
 ];
 
+const SUPER_ADMIN_EMAIL = 'testnetwork61@gmail.com';
+
 interface AdminDashboardProps {
   onLogout: () => void;
+  adminUser?: { email: string; name: string } | null;
 }
 
-export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
+export default function AdminDashboard({ onLogout, adminUser }: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState('orders');
   const [selectedLocationId, setSelectedLocationId] = useState('location1');
+  const isSuperAdmin = adminUser?.email === SUPER_ADMIN_EMAIL;
   const [deletedSubTab, setDeletedSubTab] = useState('menu');
   const [cateringSubTab, setCateringSubTab] = useState<'party-trays' | 'food-truck'>('party-trays');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
@@ -1484,7 +1489,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
           } overflow-hidden`}
         >
           <div className="p-6">
-            <div className="flex justify-between items-center mb-8">
+            <div className="flex justify-between items-center mb-4">
               <h1 className="text-xl font-bold">
                 <span className="text-orange-500">WALLYZ</span> ADMIN
               </h1>
@@ -1492,6 +1497,24 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                 <X size={24} />
               </button>
             </div>
+
+            {/* Logged in user */}
+            {adminUser && (
+              <div className="bg-gray-800 rounded-lg p-3 mb-6 border border-gray-700">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 bg-orange-500 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                    {adminUser.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-white font-semibold text-sm truncate">{adminUser.name}</p>
+                    <p className="text-gray-400 text-xs truncate">{adminUser.email}</p>
+                    {adminUser.email === SUPER_ADMIN_EMAIL && (
+                      <span className="text-orange-500 text-xs font-semibold">⭐ Super Admin</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
             <nav className="space-y-2">
               {/* Location Switcher */}
@@ -1589,6 +1612,19 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                 <Clock size={20} />
                 Business Hours
               </button>
+
+              {isSuperAdmin && (
+                <button
+                  onClick={() => setActiveTab("superadmin")}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                    activeTab === "superadmin" ? "bg-orange-500 text-white" : "text-gray-400 hover:bg-gray-800"
+                  }`}
+                >
+                  <Users size={20} />
+                  Manage Admins
+                  <span className="ml-auto text-xs bg-orange-500 text-white px-1.5 py-0.5 rounded">SUPER</span>
+                </button>
+              )}
             </nav>
 
             <button
@@ -1634,6 +1670,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                 {activeTab === 'menu' && <MenuManagement onUpdate={fetchAllData} />}
                 {activeTab === 'deleted' && renderDeletedItems()}
                 {activeTab === 'hours' && renderHours()}
+                {activeTab === 'superadmin' && isSuperAdmin && <SuperAdminPanel />}
               </>
             )}
           </div>
