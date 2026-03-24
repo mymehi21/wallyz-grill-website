@@ -124,6 +124,7 @@ serve(async (req) => {
       headers: {
         'Authorization': `Bearer ${ecommerceToken}`,
         'Content-Type': 'application/json',
+        'X-Clover-Merchant-Id': merchantId,
       },
       body: JSON.stringify({
         customer: {
@@ -142,6 +143,7 @@ serve(async (req) => {
         redirectUrls: {
           success: `${origin}?order_success=true&order_id=${order_db_id}`,
           failure: `${origin}?order_failed=true&order_id=${order_db_id}`,
+          cancel: `${origin}?order_failed=true&order_id=${order_db_id}`,
         },
       }),
     });
