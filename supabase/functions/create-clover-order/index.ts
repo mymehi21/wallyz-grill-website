@@ -118,6 +118,32 @@ serve(async (req) => {
     // ── STEP 3: Create Hosted Checkout using ecommerce token ─────────
     // Customer pays here → money goes directly to restaurant's Clover account
     const origin = payload.origin || 'https://mymehi21.github.io/wallyz-grill-website';
+    const isLocalhost = origin.includes('localhost');
+
+    const checkoutBody: any = {
+      customer: {
+        email: customer_email,
+        firstName: customer_name.split(' ')[0],
+        lastName: customer_name.split(' ').slice(1).join(' ') || '',
+        phoneNumber: customer_phone,
+      },
+      shoppingCart: {
+        lineItems: cart.map(item => ({
+          name: item.name,
+          unitAmount: Math.round(item.price * 100),
+          quantity: item.quantity,
+        })),
+      },
+    };
+
+    // Only include redirectUrls for live domains — Clover rejects localhost
+    if (!isLocalhost) {
+      checkoutBody.redirectUrls = {
+        success: `${origin}?order_success=true&order_id=${order_db_id}`,
+        failure: `${origin}?order_failed=true&order_id=${order_db_id}`,
+        cancel: `${origin}?order_failed=true&order_id=${order_db_id}`,
+      };
+    }
 
     const checkoutRes = await fetch(`${CLOVER_API}/invoicingcheckoutservice/v1/checkouts`, {
       method: 'POST',
@@ -126,26 +152,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
         'X-Clover-Merchant-Id': merchantId,
       },
-      body: JSON.stringify({
-        customer: {
-          email: customer_email,
-          firstName: customer_name.split(' ')[0],
-          lastName: customer_name.split(' ').slice(1).join(' ') || '',
-          phoneNumber: customer_phone,
-        },
-        shoppingCart: {
-          lineItems: cart.map(item => ({
-            name: item.name,
-            unitAmount: Math.round(item.price * 100),
-            quantity: item.quantity,
-          })),
-        },
-        redirectUrls: {
-          success: `${origin}?order_success=true&order_id=${order_db_id}`,
-          failure: `${origin}?order_failed=true&order_id=${order_db_id}`,
-          cancel: `${origin}?order_failed=true&order_id=${order_db_id}`,
-        },
-      }),
+      body: JSON.stringify(checkoutBody),
     });
 
     let checkoutUrl = null;
