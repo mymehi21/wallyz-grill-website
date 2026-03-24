@@ -1508,9 +1508,6 @@ export default function AdminDashboard({ onLogout, adminUser }: AdminDashboardPr
                   <div className="min-w-0">
                     <p className="text-white font-semibold text-sm truncate">{adminUser.name}</p>
                     <p className="text-gray-400 text-xs truncate">{adminUser.email}</p>
-                    {adminUser.email === SUPER_ADMIN_EMAIL && (
-                      <span className="text-orange-500 text-xs font-semibold">⭐ Super Admin</span>
-                    )}
                   </div>
                 </div>
               </div>

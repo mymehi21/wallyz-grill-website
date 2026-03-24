@@ -11,7 +11,6 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -22,15 +21,11 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-
       if (error) throw error;
-
       if (data.user) {
-        // Update last login in admin_users table
         await supabase.from('admin_users')
           .update({ last_login: new Date().toISOString() })
           .eq('id', data.user.id);
-
         onLoginSuccess();
       }
     } catch (err: any) {
@@ -98,21 +93,8 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                    className="w-4 h-4 accent-orange-500"
-                  />
-                  <span className="text-sm text-gray-300">Remember me</span>
-                </label>
-              </div>
-
               {error && (
-                <div className="bg-red-500 bg-opacity-10 border border-red-500 text-red-400 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
-                  <Lock size={16} />
+                <div className="bg-red-500 bg-opacity-10 border border-red-500 text-red-400 px-4 py-3 rounded-lg text-sm">
                   {error}
                 </div>
               )}
@@ -123,17 +105,19 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
                 className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {loading ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Signing In...
-                  </>
+                  <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Signing In...</>
                 ) : 'Sign In'}
               </button>
             </form>
 
-            <div className="mt-6 pt-6 border-t border-gray-800 text-center">
-              <p className="text-xs text-gray-500">Authorized personnel only</p>
-              <p className="text-xs text-gray-600 mt-1">© {new Date().getFullYear()} Wallyz Grill</p>
+            <div className="mt-6 pt-6 border-t border-gray-800 text-center space-y-2">
+              <p className="text-xs text-gray-500">
+                Don't have an account?{' '}
+                <a href="mailto:testnetwork61@gmail.com" className="text-orange-500 hover:text-orange-400 transition-colors">
+                  Contact your administrator
+                </a>
+              </p>
+              <p className="text-xs text-gray-600">© {new Date().getFullYear()} Wallyz Grill — Authorized personnel only</p>
             </div>
           </div>
         </div>
