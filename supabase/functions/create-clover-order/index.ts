@@ -120,6 +120,9 @@ serve(async (req) => {
     const origin = payload.origin || 'https://mymehi21.github.io/wallyz-grill-website';
     const isLocalhost = origin.includes('localhost');
 
+    // Debug: log cart to see what we're getting
+    console.log('Cart items:', JSON.stringify(cart));
+
     const checkoutBody: any = {
       customer: {
         email: customer_email,
@@ -128,14 +131,11 @@ serve(async (req) => {
         phoneNumber: customer_phone,
       },
       shoppingCart: {
-        lineItems: cart.flatMap(item =>
-          // Clover Hosted Checkout doesn't support quantity field
-          // so we repeat the line item for each unit ordered
-          Array(item.quantity).fill({
-            name: item.quantity > 1 ? `${item.name}` : item.name,
-            unitAmount: Math.round(item.price * 100),
-          })
-        ),
+        lineItems: cart.map(item => ({
+          name: item.name,
+          unitAmount: Math.round(item.price * 100),
+          unitQty: Math.round((item.quantity || 1) * 1000),
+        })),
       },
     };
 
