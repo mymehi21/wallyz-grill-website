@@ -58,7 +58,7 @@ function AdminRoute() {
       name: data?.full_name || email.split('@')[0],
     });
 
-    // Check if they need to change their password
+    // Check if they need to change their password — only if explicitly set to true
     setMustChangePassword(data?.must_change_password === true);
   };
 
