@@ -14,13 +14,12 @@ serve(async (req) => {
   }
 
   try {
-    // Create admin client with service role — can delete auth users
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
-    // Verify the requester is the super admin
+    // Verify caller is super admin
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) throw new Error('Unauthorized');
 
@@ -30,13 +29,86 @@ serve(async (req) => {
     if (authError || !user) throw new Error('Unauthorized');
     if (user.email !== SUPER_ADMIN_EMAIL) throw new Error('Only the super admin can perform this action');
 
-    const { action, email, userId } = await req.json();
+    const body = await req.json();
+    const { action } = body;
 
+    // ── CREATE ADMIN ─────────────────────────────────────────────────
+    // Creates the auth account with a temp password you set
+    // First login forces them to change their password
+    if (action === 'create_admin') {
+      const { email, full_name, temp_password } = body;
+
+      // Create auth user
+      const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+        email: email.toLowerCase().trim(),
+        password: temp_password,
+        email_confirm: true, // Skip email confirmation
+        user_metadata: { full_name, must_change_password: true },
+      });
+
+      if (createError) throw createError;
+
+      // Save to admin_users table
+      await supabaseAdmin.from('admin_users').upsert({
+        id: newUser.user.id,
+        email: email.toLowerCase().trim(),
+        full_name: full_name.trim(),
+        must_change_password: true,
+        created_at: new Date().toISOString(),
+      });
+
+      // Also ensure they're in approved_admins
+      await supabaseAdmin.from('approved_admins').upsert({
+        email: email.toLowerCase().trim(),
+        full_name: full_name.trim(),
+        is_active: true,
+      }, { onConflict: 'email' });
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // ── RESET PASSWORD ───────────────────────────────────────────────
+    // You set a new temp password for them
+    if (action === 'reset_password') {
+      const { email, new_password } = body;
+
+      // Find user by email
+      const { data: adminUser } = await supabaseAdmin
+        .from('admin_users')
+        .select('id')
+        .eq('email', email.toLowerCase())
+        .maybeSingle();
+
+      if (!adminUser?.id) throw new Error('Admin account not found');
+
+      // Update their password
+      const { error } = await supabaseAdmin.auth.admin.updateUserById(adminUser.id, {
+        password: new_password,
+        user_metadata: { must_change_password: true },
+      });
+
+      if (error) throw error;
+
+      // Mark as must change password
+      await supabaseAdmin.from('admin_users')
+        .update({ must_change_password: true })
+        .eq('id', adminUser.id);
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // ── DELETE ADMIN ─────────────────────────────────────────────────
     if (action === 'delete_admin') {
+      const { email } = body;
+
       // Remove from approved_admins
       await supabaseAdmin.from('approved_admins').delete().eq('email', email.toLowerCase());
 
-      // Find and delete from auth if they have an account
+      // Find and delete auth user
       const { data: adminUser } = await supabaseAdmin
         .from('admin_users')
         .select('id')
@@ -53,30 +125,12 @@ serve(async (req) => {
       });
     }
 
-    if (action === 'reset_password') {
-      // Send password reset email via Supabase Auth
-      const { error } = await supabaseAdmin.auth.admin.generateLink({
-        type: 'recovery',
-        email: email.toLowerCase(),
-      });
-
-      if (error) throw error;
-
-      // Also send via regular reset email so it goes to their inbox
-      await supabaseAdmin.auth.resetPasswordForEmail(email.toLowerCase(), {
-        redirectTo: `${req.headers.get('origin') || 'https://mymehi21.github.io/wallyz-grill-website'}/admin`,
-      });
-
-      return new Response(JSON.stringify({ success: true }), {
-        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-      });
-    }
-
     return new Response(JSON.stringify({ error: 'Unknown action' }), {
       status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
+    console.error('Admin management error:', error);
     return new Response(JSON.stringify({ success: false, error: error.message }), {
       status: 500, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
     });
