@@ -128,11 +128,14 @@ serve(async (req) => {
         phoneNumber: customer_phone,
       },
       shoppingCart: {
-        lineItems: cart.map(item => ({
-          name: item.name,
-          unitAmount: Math.round(item.price * 100),
-          quantity: item.quantity,
-        })),
+        lineItems: cart.flatMap(item =>
+          // Clover Hosted Checkout doesn't support quantity field
+          // so we repeat the line item for each unit ordered
+          Array(item.quantity).fill({
+            name: item.quantity > 1 ? `${item.name}` : item.name,
+            unitAmount: Math.round(item.price * 100),
+          })
+        ),
       },
     };
 
