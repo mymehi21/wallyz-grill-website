@@ -116,6 +116,7 @@ export default function Checkout({ onNavigate }: CheckoutProps) {
           cart: cart,
           total_amount: cartTotal,
           order_db_id: savedOrderId,
+          origin: window.location.origin,
         },
       });
 

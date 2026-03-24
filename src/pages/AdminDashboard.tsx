@@ -1119,7 +1119,12 @@ export default function AdminDashboard({ onLogout, adminUser }: AdminDashboardPr
       {cateringSubTab === 'food-truck' && (
         <div>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-            <h3 className="text-xl font-bold text-white">Food Truck Requests</h3>
+            <div>
+              <h3 className="text-xl font-bold text-white">Food Truck Requests</h3>
+              <p className="text-gray-400 text-xs mt-1 flex items-center gap-1">
+                <MapPin size={12} /> Showing all locations — food truck is not location-specific
+              </p>
+            </div>
             <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
               <div className="relative flex-1 sm:flex-initial">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />

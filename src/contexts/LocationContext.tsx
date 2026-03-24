@@ -24,8 +24,8 @@ const defaultLocations: Location[] = [
     name: 'Wallyz Grill - Oak Park',
     address: '25000 Greenfield Rd, Oak Park, MI 48237',
     phone: '(248) 993-9330',
-    cloverMerchantId: '526109700884',
-    cloverApiToken: 'b92256f2-54bd-75d3-394e-f13c76b59ae4',
+    cloverMerchantId: 'JKK2PQSFMZNS1',
+    cloverApiToken: '74ced84f-11bc-7103-0bdd-4da52e7e0842',
     directions: 'https://maps.google.com/?q=25000+Greenfield+Rd,+Oak+Park,+MI+48237'
   },
   {
@@ -33,7 +33,7 @@ const defaultLocations: Location[] = [
     name: 'Wallyz Grill - Redford',
     address: '25575 5 Mile Rd, Redford, MI 48239',
     phone: '(313) 800-1954',
-    cloverMerchantId: '526493229888',
+    cloverMerchantId: 'G6JZKQKPDNT71',
     cloverApiToken: 'b92256f2-54bd-75d3-394e-f13c76b59ae4',
     directions: 'https://maps.google.com/?q=25575+5+Mile+Rd,+Redford,+MI+48239',
   }
