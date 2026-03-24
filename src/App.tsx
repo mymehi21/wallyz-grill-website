@@ -24,7 +24,6 @@ function AdminRoute() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check existing session on load
     supabase.auth.getSession().then(({ data }) => {
       if (data.session?.user) {
         setIsAuthenticated(true);
@@ -33,7 +32,6 @@ function AdminRoute() {
       setLoading(false);
     });
 
-    // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         setIsAuthenticated(true);
@@ -53,7 +51,7 @@ function AdminRoute() {
       .select('full_name, email')
       .eq('id', userId)
       .maybeSingle();
-    
+
     setAdminUser({
       email: email,
       name: data?.full_name || email.split('@')[0],
@@ -62,14 +60,14 @@ function AdminRoute() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    setIsAuthenticated(false);
-    setAdminUser(null);
+    // Force full page reload to clear all state and session
+    window.location.href = '/admin';
   };
 
   if (loading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-white text-xl">Loading...</div>
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-500"></div>
       </div>
     );
   }
