@@ -1488,7 +1488,7 @@ export default function AdminDashboard({ onLogout, adminUser }: AdminDashboardPr
             sidebarOpen ? 'w-64' : 'w-0'
           } overflow-hidden`}
         >
-          <div className="p-6">
+          <div className="p-6 h-full overflow-y-auto flex flex-col">
             <div className="flex justify-between items-center mb-4">
               <h1 className="text-xl font-bold">
                 <span className="text-orange-500">WALLYZ</span> ADMIN
@@ -1626,7 +1626,7 @@ export default function AdminDashboard({ onLogout, adminUser }: AdminDashboardPr
 
             <button
               onClick={onLogout}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-500 hover:bg-gray-800 transition-colors mt-8"
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-500 hover:bg-gray-800 transition-colors mt-auto pt-8"
             >
               <LogOut size={20} />
               Logout
