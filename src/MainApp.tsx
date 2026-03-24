@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { LocationProvider } from './contexts/LocationContext';
 import { CartProvider } from './contexts/CartContext';
 
@@ -11,13 +11,21 @@ import Footer from './components/Footer';
 import MenuPage from './pages/MenuPage';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
+import OrderSuccess from './pages/OrderSuccess';
+import OrderFailed from './pages/OrderFailed';
 import Catering from './pages/Catering';
 import Reviews from './pages/Reviews';
 import Careers from './pages/Careers';
 import TestData from './pages/TestData';
 
 export default function MainApp() {
-  const [currentPage, setCurrentPage] = useState('home');
+  const [currentPage, setCurrentPage] = useState(() => {
+    // On initial load, check URL params to handle Clover payment redirects
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('order_success') === 'true') return 'order-success';
+    if (params.get('order_failed') === 'true') return 'order-failed';
+    return 'home';
+  });
 
   const handleNavigate = (page: string) => {
     setCurrentPage(page);
@@ -36,6 +44,8 @@ export default function MainApp() {
             {currentPage === 'menu' && <MenuPage onNavigate={handleNavigate} />}
             {currentPage === 'cart' && <Cart onNavigate={handleNavigate} />}
             {currentPage === 'checkout' && <Checkout onNavigate={handleNavigate} />}
+            {currentPage === 'order-success' && <OrderSuccess onNavigate={handleNavigate} />}
+            {currentPage === 'order-failed' && <OrderFailed onNavigate={handleNavigate} />}
             {currentPage === 'catering' && <Catering />}
             {currentPage === 'reviews' && <Reviews />}
             {currentPage === 'careers' && <Careers />}
