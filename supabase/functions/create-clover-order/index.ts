@@ -6,7 +6,6 @@ const CORS_HEADERS = {
 };
 
 const CLOVER_API = 'https://api.clover.com';
-const ECOMM_API = 'https://scl.clover.com';
 
 const LOCATIONS: Record<string, {
   merchantId: string;
@@ -16,7 +15,7 @@ const LOCATIONS: Record<string, {
   location1: {
     merchantId: 'JKK2PQSFMZNS1',
     apiToken: '74ced84f-11bc-7103-0bdd-4da52e7e0842',
-    ecommerceToken: '3c2489ba-6226-b259-d760-d0236f272373',
+    ecommerceToken: '46cedO41-11e4-e53f-8570-018099fa9146',
   },
   location2: {
     merchantId: 'G6JZKQKPDNT71',
@@ -78,6 +77,7 @@ serve(async (req) => {
     if (!orderRes.ok) throw new Error(`Order creation failed: ${await orderRes.text()}`);
     const cloverOrder = await orderRes.json();
     const cloverOrderId = cloverOrder.id;
+    console.log('Order created:', cloverOrderId);
 
     // ── STEP 2: Add line items ───────────────────────────────────────
     for (const item of cart) {
@@ -98,110 +98,56 @@ serve(async (req) => {
       });
     }
 
-    // ── STEP 3: Create payment session using Clover Ecommerce API ────
-    // Uses the correct Clover ecommerce endpoint format
+    // ── STEP 3: Generate Clover Hosted Checkout payment URL ──────────
     const origin = payload.origin || 'https://mymehi21.github.io/wallyz-grill-website';
     const isLocalhost = origin.includes('localhost');
 
-    // Calculate total in cents
-    const totalInCents = Math.round(cart.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0) * 100);
-
-    // Use Clover's charge/session API which is what ecommerce tokens are actually for
-    const chargeBody: any = {
-      amount: totalInCents,
-      currency: 'usd',
-      capture: true,
-      description: `Online Order - ${customer_name} | Pickup: ${pickup_time || 'ASAP'}`,
-      source: 'hosted_checkout',
-      metadata: {
-        order_id: order_db_id,
-        clover_order_id: cloverOrderId,
-        customer_name,
-        customer_phone,
+    const checkoutPayload: any = {
+      customer: {
+        email: customer_email,
+        firstName: customer_name.split(' ')[0],
+        lastName: customer_name.split(' ').slice(1).join(' ') || 'Customer',
+        phoneNumber: customer_phone,
+      },
+      shoppingCart: {
+        lineItems: cart.map(item => ({
+          name: item.name,
+          unitAmount: Math.round(item.price * 100),
+          unitQty: (item.quantity || 1) * 1000,
+        })),
       },
     };
 
+    // Only add redirect URLs for non-localhost
     if (!isLocalhost) {
-      chargeBody.redirect_url = `${origin}?order_success=true&order_id=${order_db_id}`;
+      checkoutPayload.redirectUrls = {
+        success: `${origin}?order_success=true&order_id=${order_db_id}`,
+        failure: `${origin}?order_failed=true&order_id=${order_db_id}`,
+        cancel: `${origin}?order_failed=true&order_id=${order_db_id}`,
+      };
     }
 
-    console.log('Attempting checkout with body:', JSON.stringify(chargeBody));
+    console.log('Checkout payload:', JSON.stringify(checkoutPayload));
 
-    // Try the Clover hosted checkout page endpoint
-    const checkoutRes = await fetch(`${ECOMM_API}/invoicingcheckoutservice/v1/checkouts`, {
+    const checkoutRes = await fetch(`${CLOVER_API}/invoicingcheckoutservice/v1/checkouts`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${ecommerceToken}`,
         'Content-Type': 'application/json',
-        'X-Clover-Merchant-Id': merchantId,
       },
-      body: JSON.stringify({
-        customer: {
-          email: customer_email,
-          firstName: customer_name.split(' ')[0],
-          lastName: customer_name.split(' ').slice(1).join(' ') || 'N/A',
-          phoneNumber: customer_phone,
-        },
-        shoppingCart: {
-          lineItems: cart.map(item => ({
-            name: item.name,
-            unitAmount: Math.round(item.price * 100),
-            unitQty: (item.quantity || 1) * 1000,
-          })),
-        },
-        ...(!isLocalhost ? {
-          redirectUrls: {
-            success: `${origin}?order_success=true&order_id=${order_db_id}`,
-            failure: `${origin}?order_failed=true&order_id=${order_db_id}`,
-            cancel: `${origin}?order_failed=true&order_id=${order_db_id}`,
-          }
-        } : {}),
-      }),
+      body: JSON.stringify(checkoutPayload),
     });
 
-    console.log('Checkout response status:', checkoutRes.status);
+    console.log('Checkout status:', checkoutRes.status);
 
     let checkoutUrl = null;
     if (checkoutRes.ok) {
       const data = await checkoutRes.json();
-      console.log('Checkout response:', JSON.stringify(data));
+      console.log('Checkout success:', JSON.stringify(data));
       checkoutUrl = data.href ?? data.url ?? data.checkoutUrl ?? null;
     } else {
       const errText = await checkoutRes.text();
-      console.error('Hosted checkout error:', errText);
-      
-      // Try alternative endpoint
-      const altRes = await fetch(`${CLOVER_API}/invoicingcheckoutservice/v1/checkouts`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${ecommerceToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          customer: {
-            email: customer_email,
-            firstName: customer_name.split(' ')[0],
-            lastName: customer_name.split(' ').slice(1).join(' ') || 'N/A',
-            phoneNumber: customer_phone,
-          },
-          shoppingCart: {
-            lineItems: cart.map(item => ({
-              name: item.name,
-              unitAmount: Math.round(item.price * 100),
-              unitQty: (item.quantity || 1) * 1000,
-            })),
-          },
-        }),
-      });
-
-      console.log('Alt checkout status:', altRes.status);
-      if (altRes.ok) {
-        const altData = await altRes.json();
-        console.log('Alt checkout response:', JSON.stringify(altData));
-        checkoutUrl = altData.href ?? altData.url ?? null;
-      } else {
-        console.error('Alt checkout error:', await altRes.text());
-      }
+      console.error('Checkout error:', errText);
     }
 
     return new Response(JSON.stringify({ success: true, cloverOrderId, checkoutUrl }), {
@@ -209,7 +155,7 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error:', error.message);
     return new Response(JSON.stringify({ success: false, error: error.message }), {
       status: 500, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
     });
