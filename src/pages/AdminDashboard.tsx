@@ -1682,8 +1682,8 @@ export default function AdminDashboard({ onLogout, adminUser }: AdminDashboardPr
                 {activeTab === 'menu' && <MenuManagement onUpdate={fetchAllData} />}
                 {activeTab === 'deleted' && renderDeletedItems()}
                 {activeTab === 'hours' && renderHours()}
-                {activeTab === 'restaurant-accounts' {activeTab === 'superadmin' && isSuperAdmin && <SuperAdminPanel />}{activeTab === 'superadmin' && isSuperAdmin && <SuperAdminPanel />} <RestaurantAccounts isSuperAdmin={isSuperAdmin} />}
-                {activeTab === 'superadmin' {activeTab === 'superadmin' && isSuperAdmin && <SuperAdminPanel />}{activeTab === 'superadmin' && isSuperAdmin && <SuperAdminPanel />} isSuperAdmin {activeTab === 'superadmin' && isSuperAdmin && <SuperAdminPanel />}{activeTab === 'superadmin' && isSuperAdmin && <SuperAdminPanel />} <SuperAdminPanel />}
+                {activeTab === 'restaurant-accounts' && <RestaurantAccounts isSuperAdmin={isSuperAdmin} />}
+                {activeTab === 'superadmin' && isSuperAdmin && <SuperAdminPanel />}
               </>
             )}
           </div>
