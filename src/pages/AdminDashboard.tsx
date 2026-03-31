@@ -6,6 +6,7 @@ import ViewModeSelector, { ViewMode } from '../components/ViewModeSelector';
 import { groupItemsByDate, sortDateGroups, getFormattedTime, formatTimeTo12Hour } from '../utils/dateUtils';
 import MenuManagement from '../components/MenuManagement';
 import SuperAdminPanel from '../components/SuperAdminPanel';
+import RestaurantAccounts from './RestaurantAccounts';
 
 const LOCATIONS = [
   { id: 'location1', name: 'Oak Park', db_id: 'location1' },
@@ -1615,6 +1616,15 @@ export default function AdminDashboard({ onLogout, adminUser }: AdminDashboardPr
                 Business Hours
               </button>
 
+              <button
+                onClick={() => setActiveTab("restaurant-accounts")}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                  activeTab === "restaurant-accounts" ? "bg-orange-500 text-white" : "text-gray-400 hover:bg-gray-800"
+                }`}
+              >
+                <UtensilsCrossed size={20} />
+                Restaurant Accounts
+              </button>
               {isSuperAdmin && (
                 <button
                   onClick={() => setActiveTab("superadmin")}
@@ -1672,7 +1682,8 @@ export default function AdminDashboard({ onLogout, adminUser }: AdminDashboardPr
                 {activeTab === 'menu' && <MenuManagement onUpdate={fetchAllData} />}
                 {activeTab === 'deleted' && renderDeletedItems()}
                 {activeTab === 'hours' && renderHours()}
-                {activeTab === 'superadmin' && isSuperAdmin && <SuperAdminPanel />}
+                {activeTab === 'restaurant-accounts' {activeTab === 'superadmin' && isSuperAdmin && <SuperAdminPanel />}{activeTab === 'superadmin' && isSuperAdmin && <SuperAdminPanel />} <RestaurantAccounts isSuperAdmin={isSuperAdmin} />}
+                {activeTab === 'superadmin' {activeTab === 'superadmin' && isSuperAdmin && <SuperAdminPanel />}{activeTab === 'superadmin' && isSuperAdmin && <SuperAdminPanel />} isSuperAdmin {activeTab === 'superadmin' && isSuperAdmin && <SuperAdminPanel />}{activeTab === 'superadmin' && isSuperAdmin && <SuperAdminPanel />} <SuperAdminPanel />}
               </>
             )}
           </div>

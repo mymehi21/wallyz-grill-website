@@ -166,6 +166,19 @@ serve(async (req) => {
     let cloverOrderId: string | null = null;
     let cloverSyncFailed = false;
 
+    const ORDER_TYPE_IDS: Record<string, string> = {
+      location1: 'QV8NYW5RV3KSA', // Oak Park — Carry Out
+      location2: 'QB2ER992733B6', // Redford — Carry-Out
+    };
+
+    const EMPLOYEE_IDS: Record<string, string> = {
+      location1: '7W58Z15M57CSE', // Oak Park — Moe
+      location2: '50JDX8F8BREM8', // Redford — Wasim
+    };
+
+    const orderTypeId = ORDER_TYPE_IDS[order.location_id];
+    const employeeId = EMPLOYEE_IDS[order.location_id];
+
     const orderRes = await fetch(`${CLOVER_API}/v3/merchants/${merchantId}/orders`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${apiToken}`, 'Content-Type': 'application/json' },
@@ -177,7 +190,9 @@ serve(async (req) => {
           `Pickup: ${pickup_time || 'ASAP'}`,
           special_instructions ? `Notes: ${special_instructions}` : null,
         ].filter(Boolean).join(' | '),
-        state: 'locked',
+        state: 'open',
+        orderType: { id: orderTypeId },
+        employee: { id: employeeId },
       }),
     });
 
@@ -214,6 +229,14 @@ serve(async (req) => {
           // Continue adding remaining items even if one fails
         }
       }
+
+      // ── Lock order after line items ──────────────────────────────
+      // Clover only accepts locked state once items exist - this makes it show as Carry-Out
+      await fetch(`${CLOVER_API}/v3/merchants/${merchantId}/orders/${cloverOrderId}`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${apiToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ state: 'locked' }),
+      });
 
       // ── Fire print request ─────────────────────────────────────────
       // /fire is what Clover's own online ordering uses to trigger printing

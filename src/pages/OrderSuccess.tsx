@@ -12,16 +12,17 @@ type VerifyStatus = 'verifying' | 'paid' | 'paid_clover_sync_failed' | 'unverifi
 export default function OrderSuccess({ onNavigate }: OrderSuccessProps) {
   const { clearCart } = useCart();
   const [status, setStatus] = useState<VerifyStatus>('verifying');
+  const [countdown, setCountdown] = useState(5);
 
   useEffect(() => {
+    // Read order_id from URL BEFORE cleaning it
     const params = new URLSearchParams(window.location.search);
     const id = params.get('order_id');
 
-    // Clean URL immediately
+    // Clean URL
     window.history.replaceState({}, '', window.location.pathname);
 
     if (!id) {
-      // No order ID in redirect — should not happen in normal flow
       setStatus('failed');
       return;
     }
@@ -30,18 +31,13 @@ export default function OrderSuccess({ onNavigate }: OrderSuccessProps) {
       body: { order_id: id },
     }).then(({ data, error }) => {
       if (error || !data?.success) {
-        console.error('Payment verification failed:', error || data?.error);
-
-        // Distinguish between unverifiable and outright failure
         if (data?.action === 'contact_restaurant') {
           setStatus('unverifiable');
         } else {
           setStatus('failed');
         }
       } else {
-        // Payment verified — clear cart
         clearCart();
-
         if (data.cloverSyncFailed || data.status === 'paid_clover_sync_failed') {
           setStatus('paid_clover_sync_failed');
         } else {
@@ -50,6 +46,23 @@ export default function OrderSuccess({ onNavigate }: OrderSuccessProps) {
       }
     });
   }, []);
+
+  // Auto-redirect to home after success
+  useEffect(() => {
+    if (status === 'paid' || status === 'paid_clover_sync_failed') {
+      const timer = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            onNavigate('home');
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [status, onNavigate]);
 
   if (status === 'verifying') {
     return (
@@ -76,6 +89,7 @@ export default function OrderSuccess({ onNavigate }: OrderSuccessProps) {
             <p className="text-gray-400 mb-8">
               Check your email for a confirmation with your order details.
             </p>
+            <p className="text-gray-500 text-sm mb-4">Returning to home in {countdown} seconds...</p>
             <button
               onClick={() => onNavigate('home')}
               className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-3 rounded-lg font-semibold transition-colors"
@@ -107,6 +121,7 @@ export default function OrderSuccess({ onNavigate }: OrderSuccessProps) {
               <p className="font-semibold text-white mt-3 mb-1">Redford:</p>
               <p>(313) 800-1954</p>
             </div>
+            <p className="text-gray-500 text-sm mb-4">Returning to home in {countdown} seconds...</p>
             <button
               onClick={() => onNavigate('home')}
               className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-3 rounded-lg font-semibold transition-colors"
@@ -147,7 +162,6 @@ export default function OrderSuccess({ onNavigate }: OrderSuccessProps) {
     );
   }
 
-  // status === 'failed'
   return (
     <section className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black text-white py-20 pt-28">
       <div className="container mx-auto px-4">
