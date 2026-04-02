@@ -58,25 +58,34 @@ export default function RestaurantDashboard({ account, onLogout }: RestaurantDas
   const audioIntervalRef = useRef<number | null>(null);
   const knownOrderIds = useRef<Set<string>>(new Set());
 
-  // Generate alert sound using Web Audio API
+  // DoorDash-style multi-tone chime using Web Audio API
   const playAlertSound = useCallback(() => {
     try {
       const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const playBeep = () => {
-        const oscillator = ctx.createOscillator();
-        const gainNode = ctx.createGain();
-        oscillator.connect(gainNode);
-        gainNode.connect(ctx.destination);
-        oscillator.type = 'square';
-        oscillator.frequency.setValueAtTime(880, ctx.currentTime);
-        gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
-        oscillator.start(ctx.currentTime);
-        oscillator.stop(ctx.currentTime + 0.3);
+
+      const playTone = (freq: number, startTime: number, duration: number, vol: number = 0.5) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const compressor = ctx.createDynamicsCompressor();
+        osc.connect(gain);
+        gain.connect(compressor);
+        compressor.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, startTime);
+        gain.gain.setValueAtTime(0, startTime);
+        gain.gain.linearRampToValueAtTime(vol, startTime + 0.02);
+        gain.gain.setValueAtTime(vol, startTime + duration - 0.08);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+        osc.start(startTime);
+        osc.stop(startTime + duration);
       };
-      playBeep();
-      setTimeout(playBeep, 400);
-      setTimeout(playBeep, 800);
+
+      // Upbeat 4-note chime: D5 → F#5 → A5 → D6
+      const t = ctx.currentTime;
+      playTone(587.3,  t,        0.18, 0.45); // D5
+      playTone(739.9,  t + 0.18, 0.18, 0.45); // F#5
+      playTone(880.0,  t + 0.36, 0.18, 0.45); // A5
+      playTone(1174.7, t + 0.54, 0.35, 0.55); // D6 (held longer)
     } catch (e) {
       console.error('Audio error:', e);
     }
@@ -374,31 +383,85 @@ export default function RestaurantDashboard({ account, onLogout }: RestaurantDas
 
   return (
     <div className="min-h-screen bg-black text-white">
-      {/* Alert Overlay */}
-      {activeAlert && (
-        <div className="fixed inset-0 z-50 bg-orange-500 flex flex-col items-center justify-center animate-pulse">
-          <div className="text-center p-8">
-            <div className="text-8xl mb-6">🔔</div>
-            <h1 className="text-5xl font-black text-white mb-4">NEW ORDER!</h1>
-            <p className="text-2xl text-orange-100 mb-2 font-bold">
-              {(activeAlert as any).customer_name}
-            </p>
-            <p className="text-xl text-orange-100 mb-2">
-              {activeAlert.type === 'pickup' ? '🥡 Pickup Order' : '🎉 Catering Order'}
-            </p>
-            <p className="text-3xl font-bold text-white mb-8">
-              ${Number((activeAlert as any).total_amount).toFixed(2)}
-            </p>
-            <button
-              onClick={() => confirmOrder(activeAlert)}
-              className="bg-white text-orange-600 font-black text-2xl px-16 py-6 rounded-2xl shadow-2xl hover:bg-orange-50 transition-colors active:scale-95"
-            >
-              ✓ CONFIRM ORDER
-            </button>
-            <p className="text-orange-200 text-sm mt-4">Tap to confirm and stop alert</p>
+      {/* Alert Overlay — fullscreen, shows all order details, must confirm to dismiss */}
+      {activeAlert && (() => {
+        const al = activeAlert as any;
+        const isPickup = activeAlert.type === 'pickup';
+        const items = isPickup ? (al.order_items || []) : (al.selected_trays || []);
+        return (
+          <div className="fixed inset-0 z-50 bg-orange-500 flex flex-col overflow-y-auto">
+            {/* Pulsing top banner */}
+            <div className="bg-red-600 animate-pulse text-white text-center py-3 font-black text-lg tracking-widest shrink-0">
+              🔔 NEW ORDER — TAP BELOW TO CONFIRM 🔔
+            </div>
+
+            <div className="flex-1 flex flex-col items-center justify-start px-4 py-6 gap-4 w-full max-w-lg mx-auto">
+              {/* Order type badge */}
+              <div className="bg-white/20 rounded-2xl px-6 py-2 text-white font-bold text-xl">
+                {isPickup ? '🥡 PICKUP ORDER' : '🎉 CATERING ORDER'}
+              </div>
+
+              {/* Customer info card */}
+              <div className="w-full bg-white/20 rounded-2xl p-5 text-white">
+                <p className="text-3xl font-black mb-1">{al.customer_name}</p>
+                <p className="text-lg opacity-90 mb-1">📞 {al.customer_phone}</p>
+                {isPickup && (
+                  <p className="text-lg font-semibold">
+                    🕐 Pickup: <span className="font-black">{al.pickup_time || 'ASAP'}</span>
+                  </p>
+                )}
+                {!isPickup && (
+                  <p className="text-lg font-semibold">
+                    📅 Event: <span className="font-black">{al.event_date} at {al.event_time}</span>
+                    {al.guest_count && <span className="ml-2">· {al.guest_count} guests</span>}
+                  </p>
+                )}
+              </div>
+
+              {/* Items list */}
+              <div className="w-full bg-white/20 rounded-2xl p-5 text-white">
+                <p className="font-black text-lg mb-3 border-b border-white/30 pb-2">ORDER ITEMS</p>
+                <div className="space-y-3">
+                  {items.map((item: any, i: number) => (
+                    <div key={i}>
+                      <div className="flex justify-between items-start font-bold text-base">
+                        <span>{item.quantity}x {item.name}</span>
+                        <span>${(item.price * item.quantity).toFixed(2)}</span>
+                      </div>
+                      {item.customizations?.add?.length > 0 && (
+                        <p className="text-green-200 text-sm ml-3">+ {item.customizations.add.join(', ')}</p>
+                      )}
+                      {item.customizations?.remove?.length > 0 && (
+                        <p className="text-red-200 text-sm ml-3">− {item.customizations.remove.join(', ')}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {(al.special_instructions || al.special_requests) && (
+                  <div className="mt-3 pt-3 border-t border-white/30">
+                    <p className="font-bold text-yellow-200 text-sm">📝 Note: {al.special_instructions || al.special_requests}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Total */}
+              <div className="w-full bg-white rounded-2xl p-4 flex justify-between items-center">
+                <span className="text-orange-600 font-black text-xl">TOTAL</span>
+                <span className="text-orange-600 font-black text-3xl">${Number(al.total_amount).toFixed(2)}</span>
+              </div>
+
+              {/* Confirm button */}
+              <button
+                onClick={() => confirmOrder(activeAlert)}
+                className="w-full bg-green-500 hover:bg-green-400 active:scale-95 text-white font-black text-2xl py-6 rounded-2xl shadow-2xl transition-all"
+              >
+                ✓ CONFIRM ORDER
+              </button>
+              <p className="text-orange-200 text-sm pb-4">Order will keep ringing until confirmed</p>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Header */}
       <div className="bg-gray-900 border-b border-gray-800 px-4 py-3 flex items-center justify-between">
