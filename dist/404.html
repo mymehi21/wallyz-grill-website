@@ -8,24 +8,37 @@
     <script>
       // Handle GitHub Pages SPA redirect from 404.html
       (function() {
+        var base = '/wallyz-grill-website';
+        var path = window.location.pathname;
+        var search = window.location.search;
+
+        // Strip the base path to get the route portion
+        var route = path.startsWith(base) ? path.slice(base.length) : path;
+
+        // If there's a meaningful route (e.g. /admin, /restaurant), convert to hash route
+        // and redirect to the index with a hash so HashRouter picks it up
+        if (route && route !== '/' && route !== '') {
+          var hashUrl = window.location.origin + base + '/#' + route + search;
+          window.location.replace(hashUrl);
+          return;
+        }
+
+        // Legacy: restore sessionStorage redirect
         var redirect = sessionStorage.redirect;
         delete sessionStorage.redirect;
         if (redirect && redirect !== location.href) {
           history.replaceState(null, null, redirect);
+          return;
         }
-        // Also handle the ?q= param from 404.html redirect
-        var search = window.location.search;
+
+        // Handle ?q= param from Clover redirect
         if (search) {
           var params = new URLSearchParams(search);
           var q = params.get('q');
           if (q) {
-            // Restore original query string from Clover redirect
             var restored = q.replace(/~and~/g, '&');
-            var newSearch = '?' + restored;
-            // Remove the p and q params, keep original ones
             params.delete('p');
             params.delete('q');
-            // Merge restored params
             var restoredParams = new URLSearchParams(restored);
             restoredParams.forEach(function(v, k) { params.set(k, v); });
             params.delete('p');
@@ -39,8 +52,8 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="apple-mobile-web-app-title" content="Wallyz Grill">
     <meta name="theme-color" content="#f97316">
-    <script type="module" crossorigin src="/wallyz-grill-website/assets/index-BgBsBclA.js"></script>
-    <link rel="stylesheet" crossorigin href="/wallyz-grill-website/assets/index-uzXtXZYB.css">
+    <script type="module" crossorigin src="/wallyz-grill-website/assets/index-mwQpe1L0.js"></script>
+    <link rel="stylesheet" crossorigin href="/wallyz-grill-website/assets/index-MR0BxEks.css">
   </head>
   <body>
     <div id="root"></div>
