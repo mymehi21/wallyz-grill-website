@@ -22,8 +22,8 @@ export default function Hero({ onNavigate }: HeroProps) {
         className="absolute inset-0 w-full h-full object-cover"
         style={{ filter: 'brightness(0.35) saturate(1.1)' }}
       >
-        <source src="/wallyz-grill-website/background.mov" type="video/mp4" />
-        <source src="/wallyz-grill-website/background.mov" type="video/quicktime" />
+        <source src="/background.mov" type="video/mp4" />
+        <source src="/background.mov" type="video/quicktime" />
       </video>
 
       {/* Gradient overlay for depth */}
