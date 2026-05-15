@@ -252,7 +252,7 @@ export default function Checkout({ onNavigate }: CheckoutProps) {
                   <div className="bg-orange-500 bg-opacity-10 border border-orange-500 rounded-lg p-4 mb-6">
                     <div className="flex justify-between items-center">
                       <span className="text-white font-semibold text-lg">Total Due:</span>
-                      <span className="text-orange-500 font-bold text-2xl">${cartTotal.toFixed(2)}</span>
+                      <span className="text-orange-500 font-bold text-2xl">${discountedTotal.toFixed(2)}</span>
                     </div>
                   </div>
 
@@ -294,7 +294,7 @@ export default function Checkout({ onNavigate }: CheckoutProps) {
                 <div className="border-t border-gray-700 pt-4 mb-4">
                   <div className="flex justify-between text-xl font-bold">
                     <span>Total:</span>
-                    <span className="text-orange-500">${cartTotal.toFixed(2)}</span>
+                    <span className="text-orange-500">${discountedTotal.toFixed(2)}</span>
                   </div>
                 </div>
                 <div className="bg-gray-900 rounded-lg p-4 text-sm text-gray-400">
