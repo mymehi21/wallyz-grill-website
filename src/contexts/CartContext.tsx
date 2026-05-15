@@ -107,8 +107,8 @@ export function CartProvider({ children, initialLocationId = 'location1' }: { ch
             savings += prices[i];
           }
         }
-      } else if (d.scope === 'item') { console.log('DEBUG discount:', d.name, 'item_ids:', d.item_ids, 'cart items:', cart.map(c => ({ id: c.id, name: c.name })));
-        const affectedItems = cart.filter(item => (d.item_ids || []).includes(item.id));
+      } else if (d.scope === 'item') {
+        const affectedItems = cart.filter(item => (d.item_ids || []).includes(item.id.split('-').slice(0, 5).join('-')));
         for (const item of affectedItems) {
           if (d.type === 'percentage') {
             savings += item.price * item.quantity * (d.value / 100);
