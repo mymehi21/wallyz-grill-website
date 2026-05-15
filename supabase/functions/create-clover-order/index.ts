@@ -89,10 +89,29 @@ serve(async (req) => {
       ),
     }));
 
-    // Compute discount: sum of line items minus the discounted total we received
+    // Apply discount by scaling each line item price proportionally
     const subtotalCents = lineItems.reduce((s, li) => s + (li.price * li.unitQty), 0);
     const totalCents = Math.round(payload.total_amount * 100);
     const discountCents = Math.max(0, subtotalCents - totalCents);
+
+    let adjustedLineItems = lineItems;
+    if (discountCents > 0 && subtotalCents > 0) {
+      const ratio = totalCents / subtotalCents;
+      adjustedLineItems = lineItems.map(li => ({
+        ...li,
+        price: Math.round(li.price * ratio),
+        note: [li.note, 'Promo applied'].filter(Boolean).join(' | '),
+      }));
+      // Fix any rounding drift so the total matches exactly
+      const newSubtotal = adjustedLineItems.reduce((s, li) => s + (li.price * li.unitQty), 0);
+      const drift = totalCents - newSubtotal;
+      if (drift !== 0 && adjustedLineItems.length > 0) {
+        adjustedLineItems[0] = {
+          ...adjustedLineItems[0],
+          price: adjustedLineItems[0].price + Math.round(drift / adjustedLineItems[0].unitQty),
+        };
+      }
+    }
 
     const checkoutBody: any = {
       customer: {
@@ -102,10 +121,7 @@ serve(async (req) => {
         phoneNumber: customer_phone,
       },
       shoppingCart: {
-        lineItems,
-        ...(discountCents > 0 ? {
-          discounts: { name: 'Promo discount', amount: discountCents }
-        } : {}),
+        lineItems: adjustedLineItems,
       },
     };
 
