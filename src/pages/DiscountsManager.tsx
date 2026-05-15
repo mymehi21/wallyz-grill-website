@@ -11,6 +11,7 @@ interface Discount {
   item_ids: string[];
   location_id: string;
   is_active: boolean;
+  min_subtotal: number;
   created_at: string;
 }
 
@@ -36,6 +37,7 @@ export default function DiscountsManager() {
     item_ids: [] as string[],
     location_id: 'all',
     is_active: true,
+    min_subtotal: '',
   });
 
   const fetchData = async () => {
@@ -66,12 +68,13 @@ export default function DiscountsManager() {
       item_ids: form.item_ids,
       location_id: form.location_id,
       is_active: form.is_active,
+      min_subtotal: form.min_subtotal ? Number(form.min_subtotal) : 0,
     });
     setSaving(false);
 
     if (dbError) { setError(dbError.message); return; }
     setShowForm(false);
-    setForm({ name: '', type: 'percentage', value: '', scope: 'store', item_ids: [], location_id: 'all', is_active: true });
+    setForm({ name: '', type: 'percentage', value: '', scope: 'store', item_ids: [], location_id: 'all', is_active: true, min_subtotal: '' });
     fetchData();
   };
 
@@ -191,6 +194,20 @@ export default function DiscountsManager() {
               </div>
             </div>
           )}
+
+          <div>
+            <label className="block text-sm text-gray-400 mb-1">Minimum spend required (optional)</label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+              <input
+                type="number" min="0" step="0.01"
+                value={form.min_subtotal}
+                onChange={e => setForm(p => ({ ...p, min_subtotal: e.target.value }))}
+                className="w-full bg-gray-700 text-white rounded-lg pl-7 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                placeholder="Leave blank for no minimum" />
+            </div>
+            <p className="text-xs text-gray-500 mt-1">Customer's cart must reach this amount before the discount applies.</p>
+          </div>
 
           <div className="flex items-center gap-3">
             <label className="flex items-center gap-2 cursor-pointer">

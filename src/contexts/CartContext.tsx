@@ -16,6 +16,7 @@ export interface AppliedDiscount {
   value: number;
   scope: 'store' | 'item';
   item_ids: string[];
+  min_subtotal?: number;
   savings: number;
 }
 
@@ -91,6 +92,10 @@ export function CartProvider({ children, initialLocationId = 'location1' }: { ch
     let totalSavings = 0;
 
     for (const d of activeDiscounts) {
+      // Respect minimum spend threshold
+      const minSub = Number(d.min_subtotal) || 0;
+      if (minSub > 0 && cartTotal < minSub) continue;
+
       let savings = 0;
 
       if (d.scope === 'store') {

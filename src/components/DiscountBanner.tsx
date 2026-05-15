@@ -14,7 +14,7 @@ interface DiscountBannerProps {
 }
 
 export default function DiscountBanner({ onNavigate }: DiscountBannerProps) {
-  const { activeDiscounts, addToCart } = useCart();
+  const { activeDiscounts, addToCart, cartTotal } = useCart();
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [menuItems, setMenuItems] = useState<Record<string, MenuItem>>({});
@@ -55,6 +55,14 @@ export default function DiscountBanner({ onNavigate }: DiscountBannerProps) {
   const formatScope = (d: any) => {
     if (d.scope === 'store') return 'on your entire order';
     return 'on selected items — tap to see';
+  };
+
+  const thresholdInfo = (d: any) => {
+    const minSub = Number(d.min_subtotal) || 0;
+    if (minSub <= 0) return null;
+    const remaining = minSub - cartTotal;
+    if (remaining <= 0) return { unlocked: true, label: '✓ Minimum met' };
+    return { unlocked: false, label: `Spend $${remaining.toFixed(2)} more to unlock` };
   };
 
   const toggleExpand = (id: string) => {
@@ -113,6 +121,11 @@ export default function DiscountBanner({ onNavigate }: DiscountBannerProps) {
                   {formatScope(d)}
                   {isItemScope && (isOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
                 </p>
+                {thresholdInfo(d) && (
+                  <p className={`text-xs mt-1 font-semibold ${thresholdInfo(d)!.unlocked ? 'text-green-200' : 'text-yellow-100'}`}>
+                    {thresholdInfo(d)!.label}
+                  </p>
+                )}
               </div>
               <button
                 onClick={(e) => { e.stopPropagation(); setDismissed(prev => new Set([...prev, d.id])); }}
