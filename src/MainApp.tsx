@@ -38,9 +38,11 @@ export default function MainApp() {
     if (params.get('order_failed') === 'true') return 'order-failed';
     return 'home';
   });
+  const [customizeItemId, setCustomizeItemId] = useState<string | null>(null);
 
-  const handleNavigate = (page: string) => {
+  const handleNavigate = (page: string, itemIdToCustomize?: string) => {
     setCurrentPage(page);
+    setCustomizeItemId(itemIdToCustomize || null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -65,7 +67,7 @@ export default function MainApp() {
           <main>
             {currentPage === 'home' && <Hero onNavigate={handleNavigate} />}
             {currentPage === 'about' && <About />}
-            {currentPage === 'menu' && <MenuPage onNavigate={handleNavigate} />}
+            {currentPage === 'menu' && <MenuPage onNavigate={handleNavigate} customizeItemId={customizeItemId} onCustomizeConsumed={() => setCustomizeItemId(null)} />}
             {currentPage === 'cart' && <Cart onNavigate={handleNavigate} />}
             {currentPage === 'checkout' && <Checkout onNavigate={handleNavigate} />}
             {currentPage === 'order-success' && <OrderSuccess onNavigate={handleNavigate} />}
@@ -76,7 +78,7 @@ export default function MainApp() {
             {currentPage === 'contact' && <Contact />}
             {currentPage === 'test' && <TestData />}
           </main>
-          <DiscountBanner />
+          <DiscountBanner onNavigate={handleNavigate} />
           <Footer currentPage={currentPage} />
         </div>
       </CartProvider>

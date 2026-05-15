@@ -7,16 +7,28 @@ import MenuItemCustomizer, { Customization } from '../components/MenuItemCustomi
 import { fetchHoursForLocation, isRestaurantOpen, formatHour, BusinessHour } from '../utils/hoursUtils';
 
 interface MenuPageProps {
-  onNavigate: (page: string) => void;
+  onNavigate: (page: string, itemIdToCustomize?: string) => void;
+  customizeItemId?: string | null;
+  onCustomizeConsumed?: () => void;
 }
 
-export default function MenuPage({ onNavigate }: MenuPageProps) {
+export default function MenuPage({ onNavigate, customizeItemId, onCustomizeConsumed }: MenuPageProps) {
   const { cart, addToCart } = useCart();
   const { selectedLocation, locations, setSelectedLocation } = useLocation();
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
+
+  // Auto-open customizer when navigated with a specific item ID (from DiscountBanner)
+  useEffect(() => {
+    if (!customizeItemId || items.length === 0) return;
+    const found = items.find(i => i.id === customizeItemId);
+    if (found) {
+      setSelectedItem(found);
+      onCustomizeConsumed?.();
+    }
+  }, [customizeItemId, items, onCustomizeConsumed]);
   const [hours, setHours] = useState<BusinessHour[]>([]);
   const [isOpen, setIsOpen] = useState(true);
   const [closedMessage, setClosedMessage] = useState('');
