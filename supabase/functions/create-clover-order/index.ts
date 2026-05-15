@@ -75,6 +75,25 @@ serve(async (req) => {
     // The order is only created after payment succeeds (via verify-payment function).
     // This prevents ghost orders appearing on the device before payment.
 
+    const lineItems = cart.map(item => ({
+      name: item.name,
+      price: Math.round(item.price * 100),
+      unitQty: item.quantity || 1,
+      ...(
+        (item.customizations?.add?.length || item.customizations?.remove?.length) ? {
+          note: [
+            item.customizations?.add?.length ? `Add: ${item.customizations.add.join(', ')}` : '',
+            item.customizations?.remove?.length ? `Remove: ${item.customizations.remove.join(', ')}` : '',
+          ].filter(Boolean).join(' | ')
+        } : {}
+      ),
+    }));
+
+    // Compute discount: sum of line items minus the discounted total we received
+    const subtotalCents = lineItems.reduce((s, li) => s + (li.price * li.unitQty), 0);
+    const totalCents = Math.round(payload.total_amount * 100);
+    const discountCents = Math.max(0, subtotalCents - totalCents);
+
     const checkoutBody: any = {
       customer: {
         email: customer_email,
@@ -83,19 +102,10 @@ serve(async (req) => {
         phoneNumber: customer_phone,
       },
       shoppingCart: {
-        lineItems: cart.map(item => ({
-          name: item.name,
-          price: Math.round(item.price * 100),
-          unitQty: item.quantity || 1,
-          ...(
-            (item.customizations?.add?.length || item.customizations?.remove?.length) ? {
-              note: [
-                item.customizations?.add?.length ? `Add: ${item.customizations.add.join(', ')}` : '',
-                item.customizations?.remove?.length ? `Remove: ${item.customizations.remove.join(', ')}` : '',
-              ].filter(Boolean).join(' | ')
-            } : {}
-          ),
-        })),
+        lineItems,
+        ...(discountCents > 0 ? {
+          discounts: [{ name: 'Promo discount', amount: discountCents }]
+        } : {}),
       },
     };
 
