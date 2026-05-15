@@ -67,7 +67,7 @@ serve(async (req) => {
     }
 
     const { merchantId, hostedCheckoutToken } = creds;
-    const origin = payload.origin || 'https://mymehi21.github.io/wallyz-grill-website';
+    const origin = payload.origin || 'https://wallyzgrill.com';
     const isLocalhost = origin.includes('localhost');
 
     // ── Create Hosted Checkout session ONLY ─────────────────────────────
