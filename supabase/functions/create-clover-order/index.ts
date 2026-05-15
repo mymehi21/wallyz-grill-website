@@ -102,10 +102,9 @@ serve(async (req) => {
         phoneNumber: customer_phone,
       },
       shoppingCart: {
-        lineItems,
-        ...(discountCents > 0 ? {
-          discounts: [{ name: 'Promo discount', amount: discountCents }]
-        } : {}),
+        lineItems: discountCents > 0
+          ? [...lineItems, { name: 'Promo discount', price: -discountCents, unitQty: 1 }]
+          : lineItems,
       },
     };
 
