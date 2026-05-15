@@ -22,13 +22,13 @@ export default function MenuPage({ onNavigate, customizeItemId, onCustomizeConsu
 
   // Auto-open customizer when navigated with a specific item ID (from DiscountBanner)
   useEffect(() => {
-    if (!customizeItemId || items.length === 0) return;
-    const found = items.find(i => i.id === customizeItemId);
+    if (!customizeItemId || menuItems.length === 0) return;
+    const found = menuItems.find(i => i.id === customizeItemId);
     if (found) {
       setSelectedItem(found);
       onCustomizeConsumed?.();
     }
-  }, [customizeItemId, items, onCustomizeConsumed]);
+  }, [customizeItemId, menuItems, onCustomizeConsumed]);
   const [hours, setHours] = useState<BusinessHour[]>([]);
   const [isOpen, setIsOpen] = useState(true);
   const [closedMessage, setClosedMessage] = useState('');
