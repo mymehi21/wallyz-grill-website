@@ -38,6 +38,59 @@ export default function AdminDashboard({ onLogout, adminUser }: AdminDashboardPr
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Notification badges - count of new submissions since admin last clicked the tab
+  const [badges, setBadges] = useState({ orders: 0, catering: 0, jobs: 0, reviews: 0 });
+
+  const getLastSeen = (tab: string): string => {
+    return localStorage.getItem(`admin_lastseen_${tab}`) || '1970-01-01T00:00:00Z';
+  };
+
+  const markTabSeen = (tab: string) => {
+    if (['orders', 'catering', 'jobs', 'reviews'].includes(tab)) {
+      localStorage.setItem(`admin_lastseen_${tab}`, new Date().toISOString());
+      setBadges(prev => ({ ...prev, [tab]: 0 }));
+    }
+  };
+
+  const fetchBadgeCounts = async () => {
+    try {
+      const [ordersCount, cateringCount, truckCount, jobsCount, reviewsCount] = await Promise.all([
+        supabase.from('pickup_orders').select('id', { count: 'exact', head: true })
+          .is('deleted_at', null).in('status', ['paid', 'paid_clover_sync_failed'])
+          .gt('created_at', getLastSeen('orders')),
+        supabase.from('catering_menu_orders').select('id', { count: 'exact', head: true })
+          .is('deleted_at', null).gt('created_at', getLastSeen('catering')),
+        supabase.from('food_truck_requests').select('id', { count: 'exact', head: true })
+          .is('deleted_at', null).gt('created_at', getLastSeen('catering')),
+        supabase.from('job_applications').select('id', { count: 'exact', head: true })
+          .is('deleted_at', null).gt('created_at', getLastSeen('jobs')),
+        supabase.from('customer_reviews').select('id', { count: 'exact', head: true })
+          .is('deleted_at', null).gt('created_at', getLastSeen('reviews')),
+      ]);
+      setBadges({
+        orders: ordersCount.count || 0,
+        catering: (cateringCount.count || 0) + (truckCount.count || 0),
+        jobs: jobsCount.count || 0,
+        reviews: reviewsCount.count || 0,
+      });
+    } catch (e) {
+      console.error('Failed to fetch badge counts:', e);
+    }
+  };
+
+  useEffect(() => {
+    fetchBadgeCounts();
+    const interval = setInterval(fetchBadgeCounts, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Auto-mark the active tab as seen whenever it changes (so badge clears even on initial load)
+  useEffect(() => {
+    if (['orders', 'catering', 'jobs', 'reviews'].includes(activeTab)) {
+      markTabSeen(activeTab);
+    }
+  }, [activeTab]);
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'price-low' | 'price-high' | 'name-az' | 'name-za'>('oldest');
   const [selectedItem, setSelectedItem] = useState<{item: any, table: string} | null>(null);
 
@@ -1544,43 +1597,63 @@ export default function AdminDashboard({ onLogout, adminUser }: AdminDashboardPr
               </div>
               <div className="border-t border-gray-800 pt-3"></div>
               <button
-                onClick={() => setActiveTab('orders')}
+                onClick={() => { setActiveTab('orders'); markTabSeen('orders'); }}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                   activeTab === 'orders' ? 'bg-orange-500 text-white' : 'text-gray-400 hover:bg-gray-800'
                 }`}
               >
                 <ShoppingBag size={20} />
-                Pickup Orders
+                <span className="flex-1 text-left">Pickup Orders</span>
+                {badges.orders > 0 && (
+                  <span className="bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center">
+                    {badges.orders > 99 ? '99+' : badges.orders}
+                  </span>
+                )}
               </button>
 
               <button
-                onClick={() => setActiveTab('catering')}
+                onClick={() => { setActiveTab('catering'); markTabSeen('catering'); }}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                   activeTab === 'catering' ? 'bg-orange-500 text-white' : 'text-gray-400 hover:bg-gray-800'
                 }`}
               >
                 <Truck size={20} />
-                Catering
+                <span className="flex-1 text-left">Catering</span>
+                {badges.catering > 0 && (
+                  <span className="bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center">
+                    {badges.catering > 99 ? '99+' : badges.catering}
+                  </span>
+                )}
               </button>
 
               <button
-                onClick={() => setActiveTab('jobs')}
+                onClick={() => { setActiveTab('jobs'); markTabSeen('jobs'); }}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                   activeTab === 'jobs' ? 'bg-orange-500 text-white' : 'text-gray-400 hover:bg-gray-800'
                 }`}
               >
                 <Users size={20} />
-                Job Applications
+                <span className="flex-1 text-left">Job Applications</span>
+                {badges.jobs > 0 && (
+                  <span className="bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center">
+                    {badges.jobs > 99 ? '99+' : badges.jobs}
+                  </span>
+                )}
               </button>
 
               <button
-                onClick={() => setActiveTab('reviews')}
+                onClick={() => { setActiveTab('reviews'); markTabSeen('reviews'); }}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                   activeTab === 'reviews' ? 'bg-orange-500 text-white' : 'text-gray-400 hover:bg-gray-800'
                 }`}
               >
                 <Star size={20} />
-                Reviews
+                <span className="flex-1 text-left">Reviews</span>
+                {badges.reviews > 0 && (
+                  <span className="bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center">
+                    {badges.reviews > 99 ? '99+' : badges.reviews}
+                  </span>
+                )}
               </button>
 
               <button
