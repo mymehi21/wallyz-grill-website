@@ -56,14 +56,15 @@ export default function Catering() {
       const interval = setInterval(fetchPartyTrayDiscounts, 30000);
       return () => clearInterval(interval);
     }
-  }, [selectedService]);
+  }, [selectedService, selectedLocation.id]);
 
   const fetchPartyTrayDiscounts = async () => {
     const { data } = await supabase
       .from('discounts')
       .select('*')
       .eq('is_active', true)
-      .eq('category', 'party_trays');
+      .eq('category', 'party_trays')
+      .in('location_id', ['all', selectedLocation.id]);
     setPartyTrayDiscounts(data || []);
   };
 
