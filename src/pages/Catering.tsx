@@ -498,38 +498,38 @@ export default function Catering() {
 
               <div className="space-y-4 mb-6">
                 {partyTrays.map(tray => (
-                  <div key={tray.id} className="bg-gray-900 rounded-lg p-6 border-2 border-gray-700 hover:border-orange-500 transition-all">
-                    <div className="flex gap-6 items-start mb-4">
+                  <div key={tray.id} className="bg-gray-900 rounded-lg p-4 sm:p-6 border-2 border-gray-700 hover:border-orange-500 transition-all">
+                    <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 sm:items-start mb-4">
                       {tray.image_url && (
                         <img
                           src={tray.image_url}
                           alt={tray.name}
-                          className="w-32 h-32 object-cover rounded-lg flex-shrink-0"
+                          className="w-full sm:w-32 h-40 sm:h-32 object-cover rounded-lg flex-shrink-0"
                         />
                       )}
-                      <div className="flex-1">
-                        <h4 className="text-2xl font-bold text-orange-500 mb-2">{tray.name}</h4>
-                        <p className="text-gray-400 mb-3">{tray.description}</p>
-                        <p className="text-white font-bold text-2xl">${tray.price.toFixed(2)}</p>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-xl sm:text-2xl font-bold text-orange-500 mb-2">{tray.name}</h4>
+                        <p className="text-gray-400 mb-3 text-sm sm:text-base">{tray.description}</p>
+                        <p className="text-white font-bold text-xl sm:text-2xl">${tray.price.toFixed(2)}</p>
                       </div>
 
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center justify-center sm:justify-start gap-3 sm:gap-4 mt-2 sm:mt-0">
                         <button
                           type="button"
                           onClick={() => updateTrayQuantity(tray.id, -1)}
-                          className="bg-gray-700 hover:bg-gray-600 text-white p-3 rounded-lg transition-colors"
+                          className="bg-gray-700 hover:bg-gray-600 text-white p-2 sm:p-3 rounded-lg transition-colors"
                         >
-                          <Minus size={24} />
+                          <Minus size={20} />
                         </button>
-                        <span className="text-3xl font-bold text-white w-16 text-center">
+                        <span className="text-2xl sm:text-3xl font-bold text-white w-12 sm:w-16 text-center">
                           {trayQuantities[tray.id] || 0}
                         </span>
                         <button
                           type="button"
                           onClick={() => updateTrayQuantity(tray.id, 1)}
-                          className="bg-orange-500 hover:bg-orange-600 text-white p-3 rounded-lg transition-colors"
+                          className="bg-orange-500 hover:bg-orange-600 text-white p-2 sm:p-3 rounded-lg transition-colors"
                         >
-                          <Plus size={24} />
+                          <Plus size={20} />
                         </button>
                       </div>
                     </div>
