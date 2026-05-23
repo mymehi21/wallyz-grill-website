@@ -20,6 +20,7 @@ import TestData from './pages/TestData';
 import RestaurantLogin from './pages/RestaurantLogin';
 import RestaurantDashboard from './pages/RestaurantDashboard';
 import DiscountBanner from './components/DiscountBanner';
+import CateringDiscountBanner from './components/CateringDiscountBanner';
 
 // Check if we're on the restaurant portal path
 const isRestaurantPortal = () => {
@@ -79,6 +80,9 @@ export default function MainApp() {
             {currentPage === 'test' && <TestData />}
           </main>
           <DiscountBanner onNavigate={handleNavigate} />
+          {(currentPage === 'home' || currentPage === 'catering') && (
+            <CateringDiscountBanner onNavigate={handleNavigate} />
+          )}
           <Footer currentPage={currentPage} />
         </div>
       </CartProvider>
