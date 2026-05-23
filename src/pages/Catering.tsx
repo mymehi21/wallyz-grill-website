@@ -27,6 +27,7 @@ export default function Catering() {
   const [selectedService, setSelectedService] = useState<'menu' | 'truck' | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [partyTrays, setPartyTrays] = useState<PartyTray[]>([]);
+  const [partyTrayDiscounts, setPartyTrayDiscounts] = useState<any[]>([]);
   const [selectedTray, setSelectedTray] = useState<string | null>(null);
   const [trayQuantities, setTrayQuantities] = useState<Record<string, number>>({});
   const [showRegularMenu, setShowRegularMenu] = useState(false);
@@ -50,8 +51,21 @@ export default function Catering() {
   useEffect(() => {
     if (selectedService === 'menu') {
       fetchPartyTrays();
+      fetchPartyTrayDiscounts();
+      // Refresh discounts periodically so new ones show without page reload
+      const interval = setInterval(fetchPartyTrayDiscounts, 30000);
+      return () => clearInterval(interval);
     }
   }, [selectedService]);
+
+  const fetchPartyTrayDiscounts = async () => {
+    const { data } = await supabase
+      .from('discounts')
+      .select('*')
+      .eq('is_active', true)
+      .eq('category', 'party_trays');
+    setPartyTrayDiscounts(data || []);
+  };
 
   const fetchPartyTrays = async () => {
     try {
@@ -171,17 +185,73 @@ export default function Catering() {
     return regularCart.reduce((sum, item) => sum + item.quantity, 0);
   };
 
-  const calculateTotalAmount = () => {
+  const calculateSubtotal = () => {
     const trayTotal = partyTrays.reduce((sum, tray) => {
       const qty = trayQuantities[tray.id] || 0;
       return sum + (tray.price * qty);
     }, 0);
-
-    const menuTotal = regularCart.reduce((sum, item) => {
-      return sum + (item.price * item.quantity);
-    }, 0);
-
+    const menuTotal = regularCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     return trayTotal + menuTotal;
+  };
+
+  // Tray-only subtotal — used for matching against party-tray-specific discount thresholds and item scopes
+  const calculateTraySubtotal = () => {
+    return partyTrays.reduce((sum, tray) => {
+      const qty = trayQuantities[tray.id] || 0;
+      return sum + (tray.price * qty);
+    }, 0);
+  };
+
+  const computePartyTrayDiscounts = () => {
+    const applied: any[] = [];
+    let totalSavings = 0;
+    const traySubtotal = calculateTraySubtotal();
+
+    for (const d of partyTrayDiscounts) {
+      // Min spend threshold (checked against tray subtotal)
+      const minSub = Number(d.min_subtotal) || 0;
+      if (minSub > 0 && traySubtotal < minSub) continue;
+      if (traySubtotal <= 0) continue;
+
+      let savings = 0;
+
+      if (d.scope === 'store') {
+        if (d.type === 'percentage') savings = traySubtotal * (d.value / 100);
+        else if (d.type === 'fixed') savings = Math.min(d.value, traySubtotal);
+        else if (d.type === 'bogo') {
+          const prices: number[] = [];
+          partyTrays.forEach(t => {
+            const qty = trayQuantities[t.id] || 0;
+            for (let i = 0; i < qty; i++) prices.push(t.price);
+          });
+          prices.sort((a, b) => b - a);
+          for (let i = 1; i < prices.length; i += 2) savings += prices[i];
+        }
+      } else if (d.scope === 'item') {
+        const ids = d.item_ids || [];
+        for (const tray of partyTrays) {
+          if (!ids.includes(tray.id)) continue;
+          const qty = trayQuantities[tray.id] || 0;
+          if (qty <= 0) continue;
+          if (d.type === 'percentage') savings += tray.price * qty * (d.value / 100);
+          else if (d.type === 'fixed') savings += Math.min(d.value * qty, tray.price * qty);
+          else if (d.type === 'bogo') savings += tray.price * Math.floor(qty / 2);
+        }
+      }
+
+      savings = Math.round(savings * 100) / 100;
+      if (savings > 0) {
+        applied.push({ ...d, savings });
+        totalSavings += savings;
+      }
+    }
+    return { appliedDiscounts: applied, totalSavings: Math.round(totalSavings * 100) / 100 };
+  };
+
+  const calculateTotalAmount = () => {
+    const subtotal = calculateSubtotal();
+    const { totalSavings } = computePartyTrayDiscounts();
+    return Math.max(0, Math.round((subtotal - totalSavings) * 100) / 100);
   };
 
   const [truckData, setTruckData] = useState({
@@ -319,6 +389,8 @@ export default function Catering() {
           special_instructions: specialInstructions,
           order_items: orderItems,
           total_amount: totalAmount,
+          subtotal_amount: calculateSubtotal(),
+          applied_discounts: computePartyTrayDiscounts().appliedDiscounts,
         },
       ]);
 
@@ -582,7 +654,16 @@ export default function Catering() {
                 <div className="flex justify-between items-center mb-6 pb-4 border-b-2 border-orange-500">
                   <h3 className="text-2xl font-bold text-white">Order Summary</h3>
                   <div className="text-right">
-                    <p className="text-sm text-gray-400">Total</p>
+                    {computePartyTrayDiscounts().totalSavings > 0 && (
+                      <>
+                        <p className="text-xs text-gray-500">Subtotal</p>
+                        <p className="text-sm text-gray-400 line-through mb-1">${calculateSubtotal().toFixed(2)}</p>
+                        {computePartyTrayDiscounts().appliedDiscounts.map((d: any) => (
+                          <p key={d.id} className="text-xs text-green-400">🏷️ {d.name}: -${d.savings.toFixed(2)}</p>
+                        ))}
+                      </>
+                    )}
+                    <p className="text-sm text-gray-400 mt-1">Total</p>
                     <p className="text-3xl font-bold text-orange-500">${calculateTotalAmount().toFixed(2)}</p>
                   </div>
                 </div>
@@ -894,6 +975,20 @@ export default function Catering() {
                 </div>
 
                 <div className="bg-orange-50 border-2 border-orange-500 rounded-lg p-6 mb-6">
+                  {computePartyTrayDiscounts().totalSavings > 0 && (
+                    <div className="mb-3 pb-3 border-b border-orange-200">
+                      <div className="flex justify-between text-sm text-gray-700">
+                        <span>Subtotal:</span>
+                        <span className="line-through">${calculateSubtotal().toFixed(2)}</span>
+                      </div>
+                      {computePartyTrayDiscounts().appliedDiscounts.map((d: any) => (
+                        <div key={d.id} className="flex justify-between text-sm text-green-700 font-semibold">
+                          <span>🏷️ {d.name}:</span>
+                          <span>-${d.savings.toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-2xl font-bold text-gray-900">Order Total</h3>
                     <p className="text-3xl font-bold text-orange-500">${calculateTotalAmount().toFixed(2)}</p>

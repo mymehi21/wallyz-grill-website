@@ -17,8 +17,11 @@ export interface AppliedDiscount {
   scope: 'store' | 'item';
   item_ids: string[];
   min_subtotal?: number;
+  category?: 'regular' | 'party_trays';
   savings: number;
 }
+
+const PARTY_TRAYS_CATEGORY_ID = 'cf7a2b0f-1a1b-4215-9e19-e0755b8fe648';
 
 interface CartContextType {
   cart: CartItem[];
@@ -92,28 +95,36 @@ export function CartProvider({ children, initialLocationId = 'location1' }: { ch
     let totalSavings = 0;
 
     for (const d of activeDiscounts) {
-      // Respect minimum spend threshold
+      // Filter cart items this discount applies to, based on its category
+      const discountCategory = d.category || 'regular';
+      const scopedCart = cart.filter(item => {
+        const isPartyTray = (item as any).category_id === PARTY_TRAYS_CATEGORY_ID;
+        return discountCategory === 'party_trays' ? isPartyTray : !isPartyTray;
+      });
+      const scopedSubtotal = scopedCart.reduce((t, i) => t + i.price * i.quantity, 0);
+
+      // Respect minimum spend threshold (against the scoped subtotal, not the whole cart)
       const minSub = Number(d.min_subtotal) || 0;
-      if (minSub > 0 && cartTotal < minSub) continue;
+      if (minSub > 0 && scopedSubtotal < minSub) continue;
+      if (scopedSubtotal <= 0) continue;
 
       let savings = 0;
 
       if (d.scope === 'store') {
         if (d.type === 'percentage') {
-          savings = cartTotal * (d.value / 100);
+          savings = scopedSubtotal * (d.value / 100);
         } else if (d.type === 'fixed') {
-          savings = Math.min(d.value, cartTotal);
+          savings = Math.min(d.value, scopedSubtotal);
         } else if (d.type === 'bogo') {
-          // Buy 1 get 1: for every pair, the cheaper one is free
-          const prices = cart.flatMap(item =>
+          const prices = scopedCart.flatMap(item =>
             Array(item.quantity).fill(item.price)
-          ).sort((a, b) => b - a); // descending: pay expensive, get cheap free
+          ).sort((a, b) => b - a);
           for (let i = 1; i < prices.length; i += 2) {
             savings += prices[i];
           }
         }
       } else if (d.scope === 'item') {
-        const affectedItems = cart.filter(item => (d.item_ids || []).includes(item.id.split('-').slice(0, 5).join('-')));
+        const affectedItems = scopedCart.filter(item => (d.item_ids || []).includes(item.id.split('-').slice(0, 5).join('-')));
         for (const item of affectedItems) {
           if (d.type === 'percentage') {
             savings += item.price * item.quantity * (d.value / 100);

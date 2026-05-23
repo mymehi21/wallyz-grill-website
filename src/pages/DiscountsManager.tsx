@@ -12,6 +12,7 @@ interface Discount {
   location_id: string;
   is_active: boolean;
   min_subtotal: number;
+  category: 'regular' | 'party_trays';
   created_at: string;
 }
 
@@ -19,9 +20,13 @@ interface MenuItem {
   id: string;
   name: string;
   price: number;
+  category_id?: string;
 }
 
+const PARTY_TRAYS_CATEGORY_ID = 'cf7a2b0f-1a1b-4215-9e19-e0755b8fe648';
+
 export default function DiscountsManager() {
+  const [activeTab, setActiveTab] = useState<'regular' | 'party_trays'>('regular');
   const [discounts, setDiscounts] = useState<Discount[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,7 +48,7 @@ export default function DiscountsManager() {
   const fetchData = async () => {
     const [{ data: d }, { data: m }] = await Promise.all([
       supabase.from('discounts').select('*').order('created_at', { ascending: false }),
-      supabase.from('menu_items').select('id, name, price').eq('is_available', true).order('name'),
+      supabase.from('menu_items').select('id, name, price, category_id').eq('is_available', true).order('name'),
     ]);
     setDiscounts(d || []);
     setMenuItems(m || []);
@@ -69,6 +74,7 @@ export default function DiscountsManager() {
       location_id: form.location_id,
       is_active: form.is_active,
       min_subtotal: form.min_subtotal ? Number(form.min_subtotal) : 0,
+      category: activeTab,
     });
     setSaving(false);
 
@@ -114,9 +120,22 @@ export default function DiscountsManager() {
 
   return (
     <div className="space-y-6">
+      <div className="flex gap-2 border-b border-gray-700 pb-3">
+        <button
+          onClick={() => setActiveTab('regular')}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${activeTab === 'regular' ? 'bg-orange-500 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'}`}>
+          Regular Menu Discounts
+        </button>
+        <button
+          onClick={() => setActiveTab('party_trays')}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${activeTab === 'party_trays' ? 'bg-orange-500 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'}`}>
+          Party Tray Discounts
+        </button>
+      </div>
+
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
-          <Tag size={20} className="text-orange-500" /> Discounts & Promos
+          <Tag size={20} className="text-orange-500" /> {activeTab === 'party_trays' ? 'Party Tray Discounts' : 'Discounts & Promos'}
         </h2>
         <button onClick={() => setShowForm(!showForm)}
           className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors">
@@ -183,7 +202,13 @@ export default function DiscountsManager() {
             <div>
               <label className="block text-sm text-gray-400 mb-2">Select Items ({form.item_ids.length} selected)</label>
               <div className="bg-gray-700 rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
-                {menuItems.map(item => (
+                {menuItems
+                  .filter(item =>
+                    activeTab === 'party_trays'
+                      ? item.category_id === PARTY_TRAYS_CATEGORY_ID
+                      : item.category_id !== PARTY_TRAYS_CATEGORY_ID
+                  )
+                  .map(item => (
                   <label key={item.id} className="flex items-center gap-3 cursor-pointer hover:bg-gray-600 px-2 py-1 rounded">
                     <input type="checkbox" checked={form.item_ids.includes(item.id)} onChange={() => toggleItem(item.id)}
                       className="accent-orange-500 w-4 h-4" />
@@ -234,14 +259,14 @@ export default function DiscountsManager() {
 
       {loading ? (
         <p className="text-gray-400">Loading...</p>
-      ) : discounts.length === 0 ? (
+      ) : discounts.filter(d => (d.category || 'regular') === activeTab).length === 0 ? (
         <div className="text-center text-gray-500 py-12">
           <Tag size={40} className="mx-auto mb-3 opacity-30" />
-          <p>No discounts yet. Create one to get started.</p>
+          <p>No {activeTab === 'party_trays' ? 'party tray ' : ''}discounts yet. Create one to get started.</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {discounts.map(d => (
+          {discounts.filter(d => (d.category || 'regular') === activeTab).map(d => (
             <div key={d.id} className={`bg-gray-800 rounded-xl p-4 flex items-center justify-between border ${d.is_active ? 'border-orange-500/30' : 'border-gray-700'}`}>
               <div className="flex items-center gap-4">
                 <div className={`w-2 h-2 rounded-full ${d.is_active ? 'bg-green-400' : 'bg-gray-500'}`} />
