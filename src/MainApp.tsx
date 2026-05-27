@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { LocationProvider } from './contexts/LocationContext';
+import { LocationProvider, useLocation } from './contexts/LocationContext';
+import LocationGate from './components/LocationGate';
 import { CartProvider } from './contexts/CartContext';
 
 import Navigation from './components/Navigation';
@@ -63,29 +64,56 @@ export default function MainApp() {
   return (
     <LocationProvider>
       <CartProvider>
-        <div className="min-h-screen">
-          <Navigation currentPage={currentPage} onNavigate={handleNavigate} />
-          <main>
-            {currentPage === 'home' && <Hero onNavigate={handleNavigate} />}
-            {currentPage === 'about' && <About />}
-            {currentPage === 'menu' && <MenuPage onNavigate={handleNavigate} customizeItemId={customizeItemId} onCustomizeConsumed={() => setCustomizeItemId(null)} />}
-            {currentPage === 'cart' && <Cart onNavigate={handleNavigate} />}
-            {currentPage === 'checkout' && <Checkout onNavigate={handleNavigate} />}
-            {currentPage === 'order-success' && <OrderSuccess onNavigate={handleNavigate} />}
-            {currentPage === 'order-failed' && <OrderFailed onNavigate={handleNavigate} />}
-            {currentPage === 'catering' && <Catering />}
-            {currentPage === 'reviews' && <Reviews />}
-            {currentPage === 'careers' && <Careers />}
-            {currentPage === 'contact' && <Contact />}
-            {currentPage === 'test' && <TestData />}
-          </main>
-          <DiscountBanner onNavigate={handleNavigate} />
-          {(currentPage === 'home' || currentPage === 'catering') && (
-            <CateringDiscountBanner onNavigate={handleNavigate} />
-          )}
-          <Footer currentPage={currentPage} />
-        </div>
+        <MainAppContent
+          currentPage={currentPage}
+          handleNavigate={handleNavigate}
+          customizeItemId={customizeItemId}
+          setCustomizeItemId={setCustomizeItemId}
+        />
       </CartProvider>
     </LocationProvider>
+  );
+}
+
+function MainAppContent({
+  currentPage,
+  handleNavigate,
+  customizeItemId,
+  setCustomizeItemId,
+}: {
+  currentPage: string;
+  handleNavigate: (page: string, itemId?: string) => void;
+  customizeItemId: string | null;
+  setCustomizeItemId: (id: string | null) => void;
+}) {
+  const { hasSelection } = useLocation();
+
+  if (!hasSelection) {
+    return <LocationGate />;
+  }
+
+  return (
+    <div className="min-h-screen">
+      <Navigation currentPage={currentPage} onNavigate={handleNavigate} />
+      <main>
+        {currentPage === 'home' && <Hero onNavigate={handleNavigate} />}
+        {currentPage === 'about' && <About />}
+        {currentPage === 'menu' && <MenuPage onNavigate={handleNavigate} customizeItemId={customizeItemId} onCustomizeConsumed={() => setCustomizeItemId(null)} />}
+        {currentPage === 'cart' && <Cart onNavigate={handleNavigate} />}
+        {currentPage === 'checkout' && <Checkout onNavigate={handleNavigate} />}
+        {currentPage === 'order-success' && <OrderSuccess onNavigate={handleNavigate} />}
+        {currentPage === 'order-failed' && <OrderFailed onNavigate={handleNavigate} />}
+        {currentPage === 'catering' && <Catering />}
+        {currentPage === 'reviews' && <Reviews />}
+        {currentPage === 'careers' && <Careers />}
+        {currentPage === 'contact' && <Contact />}
+        {currentPage === 'test' && <TestData />}
+      </main>
+      <DiscountBanner onNavigate={handleNavigate} />
+      {(currentPage === 'home' || currentPage === 'catering') && (
+        <CateringDiscountBanner onNavigate={handleNavigate} />
+      )}
+      <Footer currentPage={currentPage} />
+    </div>
   );
 }

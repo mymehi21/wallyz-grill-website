@@ -15,6 +15,8 @@ interface LocationContextType {
   selectedLocation: Location;
   setSelectedLocation: (location: Location) => void;
   locations: Location[];
+  hasSelection: boolean;
+  clearSelection: () => void;
 }
 
 // Default locations
@@ -42,19 +44,37 @@ const defaultLocations: Location[] = [
 const LocationContext = createContext<LocationContextType | undefined>(undefined);
 
 export function LocationProvider({ children }: { children: ReactNode }) {
-  const [selectedLocation, setSelectedLocation] = useState<Location>(defaultLocations[0]);
+  const [selectedLocation, setSelectedLocationState] = useState<Location | null>(null);
+
+  const setSelectedLocation = (location: Location) => {
+    setSelectedLocationState(location);
+  };
+
+  const clearSelection = () => {
+    setSelectedLocationState(null);
+  };
+
+  // We expose selectedLocation as non-null. Consumers must only render
+  // when hasSelection is true (the LocationGate enforces this).
+  // We give a safe placeholder so destructuring at module top-level
+  // (e.g. in component definitions) doesn't crash before the gate renders.
+  const safeSelectedLocation: Location = selectedLocation || defaultLocations[0];
 
   return (
-    <LocationContext.Provider value={{ selectedLocation, setSelectedLocation, locations: defaultLocations }}>
+    <LocationContext.Provider value={{
+      selectedLocation: safeSelectedLocation,
+      setSelectedLocation,
+      locations: defaultLocations,
+      hasSelection: selectedLocation !== null,
+      clearSelection,
+    }}>
       {children}
     </LocationContext.Provider>
   );
 }
 
 export function useLocation() {
-  const context = useContext(LocationContext);
-  if (!context) {
-    throw new Error('useLocation must be used within LocationProvider');
-  }
-  return context;
+  const ctx = useContext(LocationContext);
+  if (!ctx) throw new Error('useLocation must be used within a LocationProvider');
+  return ctx;
 }
