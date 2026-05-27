@@ -30,7 +30,7 @@ export default function RestaurantDashboard({ account, onLogout }: RestaurantDas
   const knownOrderIds = useRef<Set<string>>(new Set());
   const isFirstLoad = useRef(true);
 
-  // Loud urgent alarm sound for busy restaurant
+  // Loud urgent alarm sound for busy restaurant - continuous tight loop
   const playAlertSound = useCallback(() => {
     try {
       if (!audioCtxRef.current || audioCtxRef.current.state === 'closed') {
@@ -38,11 +38,16 @@ export default function RestaurantDashboard({ account, onLogout }: RestaurantDas
       }
       const ctx = audioCtxRef.current;
 
+      // Wake up audio context if browser suspended it
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
+
       const playBeep = (freq: number, start: number, dur: number, vol: number, type: OscillatorType = 'square') => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         const dist = ctx.createWaveShaper();
-        
+
         // Distortion for harsh sound
         const curve = new Float32Array(256);
         for (let i = 0; i < 256; i++) {
@@ -50,29 +55,36 @@ export default function RestaurantDashboard({ account, onLogout }: RestaurantDas
           curve[i] = (Math.PI + 200) * x / (Math.PI + 200 * Math.abs(x));
         }
         dist.curve = curve;
-        
+
         osc.connect(gain);
         gain.connect(dist);
         dist.connect(ctx.destination);
-        
+
         osc.type = type;
         osc.frequency.setValueAtTime(freq, ctx.currentTime + start);
         gain.gain.setValueAtTime(vol, ctx.currentTime + start);
         gain.gain.setValueAtTime(0, ctx.currentTime + start + dur);
-        
+
         osc.start(ctx.currentTime + start);
         osc.stop(ctx.currentTime + start + dur + 0.01);
       };
 
-      // Aggressive repeating alarm: 3 short loud beeps
+      // Continuous alternating high/low tones - no gaps, ~2 seconds of nonstop alarm
       const vol = 1.0;
-      playBeep(880, 0.00, 0.12, vol, 'square');
-      playBeep(880, 0.18, 0.12, vol, 'square');
-      playBeep(880, 0.36, 0.12, vol, 'square');
-      // Second burst
-      playBeep(1100, 0.65, 0.12, vol, 'square');
-      playBeep(1100, 0.83, 0.12, vol, 'square');
-      playBeep(1100, 1.01, 0.12, vol, 'square');
+      const beepDur = 0.18;
+      const gap = 0.02; // tiny gap so beeps don't blend into one tone
+      const step = beepDur + gap;
+      // 10 beeps alternating between high and low - covers ~2 seconds with no silence
+      playBeep(880,  step * 0, beepDur, vol, 'square');
+      playBeep(1100, step * 1, beepDur, vol, 'square');
+      playBeep(880,  step * 2, beepDur, vol, 'square');
+      playBeep(1100, step * 3, beepDur, vol, 'square');
+      playBeep(880,  step * 4, beepDur, vol, 'square');
+      playBeep(1100, step * 5, beepDur, vol, 'square');
+      playBeep(880,  step * 6, beepDur, vol, 'square');
+      playBeep(1100, step * 7, beepDur, vol, 'square');
+      playBeep(880,  step * 8, beepDur, vol, 'square');
+      playBeep(1100, step * 9, beepDur, vol, 'square');
     } catch (e) {
       console.error('Audio error:', e);
     }
@@ -82,7 +94,8 @@ export default function RestaurantDashboard({ account, onLogout }: RestaurantDas
     setActiveAlert(order);
     playAlertSound();
     if (audioIntervalRef.current) clearInterval(audioIntervalRef.current);
-    audioIntervalRef.current = window.setInterval(playAlertSound, 4000);
+    // Re-trigger every 2 seconds — sound itself is ~2s, so this creates a continuous wall of sound
+    audioIntervalRef.current = window.setInterval(playAlertSound, 2000);
   }, [playAlertSound]);
 
   const stopAlert = useCallback(() => {
