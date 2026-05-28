@@ -1291,10 +1291,22 @@ export default function AdminDashboard({ onLogout, adminUser }: AdminDashboardPr
       if (deletedSubTab === 'menu') return item.type === 'Menu Item';
       if (deletedSubTab === 'orders') return item.type === 'Pickup Order';
       if (deletedSubTab === 'catering') return item.type === 'Catering Order';
+      if (deletedSubTab === 'foodtruck') return item.type === 'Food Truck Request';
       if (deletedSubTab === 'jobs') return item.type === 'Job Application';
       if (deletedSubTab === 'reviews') return item.type === 'Customer Review';
       return true;
     });
+
+    // Counts per sub-tab so each button shows how many deleted items it holds
+    const countFor = (t: string) => deletedItems.filter(i => i.type === t).length;
+    const subTabCounts: Record<string, number> = {
+      menu: countFor('Menu Item'),
+      orders: countFor('Pickup Order'),
+      catering: countFor('Catering Order'),
+      foodtruck: countFor('Food Truck Request'),
+      jobs: countFor('Job Application'),
+      reviews: countFor('Customer Review'),
+    };
 
     return (
       <div className="space-y-4">
@@ -1311,7 +1323,7 @@ export default function AdminDashboard({ onLogout, adminUser }: AdminDashboardPr
               }`}
             >
               <UtensilsCrossed className="w-4 h-4 inline mr-2" />
-              Menu
+              Menu{subTabCounts.menu > 0 && ` (${subTabCounts.menu})`}
             </button>
             <button
               onClick={() => setDeletedSubTab('orders')}
@@ -1322,7 +1334,18 @@ export default function AdminDashboard({ onLogout, adminUser }: AdminDashboardPr
               }`}
             >
               <ShoppingBag className="w-4 h-4 inline mr-2" />
-              Pickup Orders
+              Pickup Orders{subTabCounts.orders > 0 && ` (${subTabCounts.orders})`}
+            </button>
+            <button
+              onClick={() => setDeletedSubTab('foodtruck')}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                deletedSubTab === 'foodtruck'
+                  ? 'bg-orange-500 text-white'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-700'
+              }`}
+            >
+              <Truck className="w-4 h-4 inline mr-2" />
+              Food Truck{subTabCounts.foodtruck > 0 && ` (${subTabCounts.foodtruck})`}
             </button>
             <button
               onClick={() => setDeletedSubTab('catering')}
@@ -1333,7 +1356,7 @@ export default function AdminDashboard({ onLogout, adminUser }: AdminDashboardPr
               }`}
             >
               <Truck className="w-4 h-4 inline mr-2" />
-              Catering
+              Catering{subTabCounts.catering > 0 && ` (${subTabCounts.catering})`}
             </button>
             <button
               onClick={() => setDeletedSubTab('jobs')}
@@ -1344,7 +1367,7 @@ export default function AdminDashboard({ onLogout, adminUser }: AdminDashboardPr
               }`}
             >
               <Users className="w-4 h-4 inline mr-2" />
-              Job Applications
+              Job Applications{subTabCounts.jobs > 0 && ` (${subTabCounts.jobs})`}
             </button>
             <button
               onClick={() => setDeletedSubTab('reviews')}
@@ -1355,7 +1378,7 @@ export default function AdminDashboard({ onLogout, adminUser }: AdminDashboardPr
               }`}
             >
               <Star className="w-4 h-4 inline mr-2" />
-              Reviews
+              Reviews{subTabCounts.reviews > 0 && ` (${subTabCounts.reviews})`}
             </button>
           </div>
 
