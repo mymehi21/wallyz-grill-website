@@ -148,7 +148,9 @@ export default function RestaurantDashboard({ account, onLogout }: RestaurantDas
 
   useEffect(() => {
     fetchOrders();
-    const interval = setInterval(fetchOrders, 15000);
+    // Poll every 3 seconds as a fallback in case realtime misses the paid-status update.
+    // This guarantees the alarm fires within ~3s even without a realtime event.
+    const interval = setInterval(fetchOrders, 3000);
     return () => clearInterval(interval);
   }, [fetchOrders]);
 

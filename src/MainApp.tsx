@@ -88,7 +88,11 @@ function MainAppContent({
 }) {
   const { hasSelection } = useLocation();
 
-  if (!hasSelection) {
+  // Returning from Clover payment — never block these with the location gate.
+  // The order already has its location; we must let OrderSuccess run verify-payment immediately.
+  const isPaymentReturn = currentPage === 'order-success' || currentPage === 'order-failed';
+
+  if (!hasSelection && !isPaymentReturn) {
     return <LocationGate />;
   }
 
