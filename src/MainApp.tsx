@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { LocationProvider, useLocation } from './contexts/LocationContext';
 import LocationGate from './components/LocationGate';
+import MaintenancePage from './components/MaintenancePage';
 import { CartProvider } from './contexts/CartContext';
 
 import Navigation from './components/Navigation';
@@ -59,6 +60,14 @@ export default function MainApp() {
         onLogout={() => { setRestaurantAccount(null); }}
       />
     );
+  }
+
+  // ── Maintenance Mode ───────────────────────────────────────────────
+  // Customer-facing pages only. Restaurant portal (above) and admin route
+  // (handled by App.tsx, separate from MainApp) remain accessible.
+  // To toggle: set VITE_MAINTENANCE_MODE=true in .env, then redeploy.
+  if (import.meta.env.VITE_MAINTENANCE_MODE === 'true') {
+    return <MaintenancePage />;
   }
 
   return (
