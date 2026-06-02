@@ -74,12 +74,14 @@ export default function Catering() {
         .from('menu_categories')
         .select('id')
         .eq('name', 'Party Trays')
+        .eq('location_id', selectedLocation.id)
         .maybeSingle();
 
       if (categoryData) {
         const { data: items } = await supabase
           .from('menu_items')
           .select('*')
+          .eq('location_id', selectedLocation.id)
           .eq('category_id', categoryData.id)
           .eq('is_available', true)
           .order('display_order');

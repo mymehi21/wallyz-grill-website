@@ -35,7 +35,7 @@ export default function MenuPage({ onNavigate, customizeItemId, onCustomizeConsu
 
   useEffect(() => {
     fetchMenuData();
-  }, []);
+  }, [selectedLocation.id]);
 
   useEffect(() => {
     fetchHoursForLocation(selectedLocation.id, supabase).then(h => {
@@ -52,6 +52,7 @@ export default function MenuPage({ onNavigate, customizeItemId, onCustomizeConsu
         .from('menu_categories')
         .select('*')
         .eq('is_active', true)
+        .eq('location_id', selectedLocation.id)
         .neq('name', 'Party Trays')
         .order('display_order');
 
@@ -59,6 +60,7 @@ export default function MenuPage({ onNavigate, customizeItemId, onCustomizeConsu
         .from('menu_items')
         .select('*')
         .eq('is_available', true)
+        .eq('location_id', selectedLocation.id)
         .order('display_order');
 
       if (categoriesError) throw categoriesError;

@@ -23,7 +23,7 @@ interface MenuItem {
   category_id?: string;
 }
 
-const PARTY_TRAYS_CATEGORY_ID = 'cf7a2b0f-1a1b-4215-9e19-e0755b8fe648';
+// Party Trays categories are per-location now; we look them up at runtime.
 
 export default function DiscountsManager() {
   const [activeTab, setActiveTab] = useState<'regular' | 'party_trays'>('regular');
@@ -45,17 +45,31 @@ export default function DiscountsManager() {
     min_subtotal: '',
   });
 
+  const [partyTraysIds, setPartyTraysIds] = useState<Set<string>>(new Set());
+
   const fetchData = async () => {
-    const [{ data: d }, { data: m }] = await Promise.all([
-      supabase.from('discounts').select('*').order('created_at', { ascending: false }),
-      supabase.from('menu_items').select('id, name, price, category_id').eq('is_available', true).order('name'),
-    ]);
+    // Discounts list is independent of location filter
+    const { data: d } = await supabase.from('discounts').select('*').order('created_at', { ascending: false });
     setDiscounts(d || []);
-    setMenuItems(m || []);
+    // Pull all Party Trays category IDs (one per location) so we can filter the picker correctly
+    const { data: ptCats } = await supabase.from('menu_categories').select('id').eq('name', 'Party Trays');
+    setPartyTraysIds(new Set((ptCats || []).map((r: any) => r.id)));
     setLoading(false);
   };
 
+  const fetchMenuItems = async (locationFilter: string) => {
+    // Item picker only shows items matching the discount's target location.
+    // 'all' = both locations (labelled). 'location1' / 'location2' = that one only.
+    let q = supabase.from('menu_items').select('id, name, price, category_id, location_id').eq('is_available', true).order('name');
+    if (locationFilter === 'location1' || locationFilter === 'location2') {
+      q = q.eq('location_id', locationFilter);
+    }
+    const { data: m } = await q;
+    setMenuItems(m || []);
+  };
+
   useEffect(() => { fetchData(); }, []);
+  useEffect(() => { fetchMenuItems(form.location_id); }, [form.location_id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -205,8 +219,8 @@ export default function DiscountsManager() {
                 {menuItems
                   .filter(item =>
                     activeTab === 'party_trays'
-                      ? item.category_id === PARTY_TRAYS_CATEGORY_ID
-                      : item.category_id !== PARTY_TRAYS_CATEGORY_ID
+                      ? partyTraysIds.has(item.category_id)
+                      : !partyTraysIds.has(item.category_id)
                   )
                   .map(item => (
                   <label key={item.id} className="flex items-center gap-3 cursor-pointer hover:bg-gray-600 px-2 py-1 rounded">

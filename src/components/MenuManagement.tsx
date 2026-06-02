@@ -39,6 +39,8 @@ interface MenuManagementProps {
 
 export default function MenuManagement({ onUpdate }: MenuManagementProps) {
   const [menuType, setMenuType] = useState<'pickup' | 'catering'>('pickup');
+  // Admin chooses which location's menu to view/edit. Defaults to Oak Park each session.
+  const [adminLocation, setAdminLocation] = useState<'location1' | 'location2'>('location1');
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [cateringItems, setCateringItems] = useState<CateringMenuItem[]>([]);
@@ -61,7 +63,7 @@ export default function MenuManagement({ onUpdate }: MenuManagementProps) {
 
   useEffect(() => {
     fetchData();
-  }, [menuType]);
+  }, [menuType, adminLocation]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -71,11 +73,12 @@ export default function MenuManagement({ onUpdate }: MenuManagementProps) {
           .from('menu_categories')
           .select('id')
           .eq('name', 'Party Trays')
+          .eq('location_id', adminLocation)
           .maybeSingle();
 
         const [categoriesRes, itemsRes] = await Promise.all([
-          supabase.from('menu_categories').select('*').neq('name', 'Party Trays').order('display_order'),
-          supabase.from('menu_items').select('*').is('deleted_at', null).neq('category_id', partyTraysCategory?.id || '').order('display_order')
+          supabase.from('menu_categories').select('*').eq('location_id', adminLocation).neq('name', 'Party Trays').order('display_order'),
+          supabase.from('menu_items').select('*').eq('location_id', adminLocation).is('deleted_at', null).neq('category_id', partyTraysCategory?.id || '').order('display_order')
         ]);
         if (categoriesRes.data) setCategories(categoriesRes.data);
         if (itemsRes.data) setMenuItems(itemsRes.data);
@@ -84,6 +87,7 @@ export default function MenuManagement({ onUpdate }: MenuManagementProps) {
           .from('menu_categories')
           .select('id')
           .eq('name', 'Party Trays')
+          .eq('location_id', adminLocation)
           .maybeSingle();
 
         if (partyTraysCategory) {
@@ -91,6 +95,7 @@ export default function MenuManagement({ onUpdate }: MenuManagementProps) {
             .from('menu_items')
             .select('*')
             .eq('category_id', partyTraysCategory.id)
+            .eq('location_id', adminLocation)
             .is('deleted_at', null)
             .order('display_order');
 
@@ -110,8 +115,8 @@ export default function MenuManagement({ onUpdate }: MenuManagementProps) {
         }
       } else {
         const [categoriesRes, deletedRes] = await Promise.all([
-          supabase.from('menu_categories').select('*').order('display_order'),
-          supabase.from('menu_items').select('*').not('deleted_at', 'is', null).order('deleted_at', { ascending: false })
+          supabase.from('menu_categories').select('*').eq('location_id', adminLocation).order('display_order'),
+          supabase.from('menu_items').select('*').eq('location_id', adminLocation).not('deleted_at', 'is', null).order('deleted_at', { ascending: false })
         ]);
         if (categoriesRes.data) setCategories(categoriesRes.data);
         if (deletedRes.data) setDeletedItems(deletedRes.data);
@@ -131,7 +136,8 @@ export default function MenuManagement({ onUpdate }: MenuManagementProps) {
       price: '0.00',
       image_url: '',
       is_available: true,
-      display_order: menuItems.length
+      display_order: menuItems.length,
+      location_id: adminLocation,
     };
 
     try {
@@ -165,10 +171,11 @@ export default function MenuManagement({ onUpdate }: MenuManagementProps) {
       .from('menu_categories')
       .select('id')
       .eq('name', 'Party Trays')
+      .eq('location_id', adminLocation)
       .maybeSingle();
 
     if (!partyTraysCategory) {
-      alert('Party Trays category not found');
+      alert('Party Trays category not found for this location');
       return;
     }
 
@@ -179,7 +186,8 @@ export default function MenuManagement({ onUpdate }: MenuManagementProps) {
       price: '0.00',
       image_url: '',
       is_available: true,
-      display_order: cateringItems.length
+      display_order: cateringItems.length,
+      location_id: adminLocation,
     };
 
     try {
@@ -461,6 +469,32 @@ export default function MenuManagement({ onUpdate }: MenuManagementProps) {
           <Plus className="w-5 h-5" />
           Add Item
         </button>
+      </div>
+
+      <div className="bg-orange-50 border-2 border-orange-300 p-3 rounded-lg">
+        <div className="text-xs font-semibold uppercase text-orange-700 mb-2">You are editing the menu for:</div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setAdminLocation('location1')}
+            className={`flex-1 px-4 py-3 rounded-lg font-bold transition-colors ${
+              adminLocation === 'location1'
+                ? 'bg-orange-500 text-white shadow'
+                : 'bg-white text-gray-700 hover:bg-orange-100'
+            }`}
+          >
+            🍽️ Oak Park
+          </button>
+          <button
+            onClick={() => setAdminLocation('location2')}
+            className={`flex-1 px-4 py-3 rounded-lg font-bold transition-colors ${
+              adminLocation === 'location2'
+                ? 'bg-orange-500 text-white shadow'
+                : 'bg-white text-gray-700 hover:bg-orange-100'
+            }`}
+          >
+            🍽️ Redford
+          </button>
+        </div>
       </div>
 
       <div className="flex gap-4 bg-gray-100 p-2 rounded-lg">

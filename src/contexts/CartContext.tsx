@@ -21,7 +21,7 @@ export interface AppliedDiscount {
   savings: number;
 }
 
-const PARTY_TRAYS_CATEGORY_ID = 'cf7a2b0f-1a1b-4215-9e19-e0755b8fe648';
+// Note: regular cart never contains party trays (those go through the Catering page flow)
 
 interface CartContextType {
   cart: CartItem[];
@@ -95,12 +95,10 @@ export function CartProvider({ children, initialLocationId = 'location1' }: { ch
     let totalSavings = 0;
 
     for (const d of activeDiscounts) {
-      // Filter cart items this discount applies to, based on its category
+      // Regular cart only holds non-tray items, so party_trays category discounts never apply here
       const discountCategory = d.category || 'regular';
-      const scopedCart = cart.filter(item => {
-        const isPartyTray = (item as any).category_id === PARTY_TRAYS_CATEGORY_ID;
-        return discountCategory === 'party_trays' ? isPartyTray : !isPartyTray;
-      });
+      if (discountCategory === 'party_trays') continue;
+      const scopedCart = cart;
       const scopedSubtotal = scopedCart.reduce((t, i) => t + i.price * i.quantity, 0);
 
       // Respect minimum spend threshold (against the scoped subtotal, not the whole cart)

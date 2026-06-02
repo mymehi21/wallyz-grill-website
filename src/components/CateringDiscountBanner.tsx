@@ -53,25 +53,27 @@ export default function CateringDiscountBanner({ onNavigate }: CateringDiscountB
     fetchTrayDetails();
   }, [expanded, discounts]);
 
-  // For store-scope discounts, also need to know what trays exist
+  // For store-scope discounts, also need to know what trays exist (for the selected location)
   useEffect(() => {
     const fetchAllTrays = async () => {
       const { data: cat } = await supabase
         .from('menu_categories')
         .select('id')
         .eq('name', 'Party Trays')
+        .eq('location_id', selectedLocation.id)
         .maybeSingle();
       if (!cat) return;
       const { data: items } = await supabase
         .from('menu_items')
         .select('id, name, description, price, image_url')
         .eq('category_id', cat.id)
+        .eq('location_id', selectedLocation.id)
         .eq('is_available', true)
         .order('display_order');
       setTrays(items || []);
     };
     fetchAllTrays();
-  }, []);
+  }, [selectedLocation.id]);
 
   if (discounts.length === 0) return null;
 
