@@ -20,6 +20,10 @@ interface MenuItem {
   image_url: string | null;
   is_available: boolean;
   display_order: number;
+  customization_options?: any;
+  allow_protein_additions?: boolean;
+  base_ingredients?: string[];
+  non_removable_ingredients?: string[];
 }
 
 interface CateringMenuItem {
@@ -35,12 +39,13 @@ interface CateringMenuItem {
 
 interface MenuManagementProps {
   onUpdate?: () => void;
+  currentLocation: string;
 }
 
-export default function MenuManagement({ onUpdate }: MenuManagementProps) {
+export default function MenuManagement({ onUpdate, currentLocation }: MenuManagementProps) {
   const [menuType, setMenuType] = useState<'pickup' | 'catering'>('pickup');
-  // Admin chooses which location's menu to view/edit. Defaults to Oak Park each session.
-  const [adminLocation, setAdminLocation] = useState<'location1' | 'location2'>('location1');
+  // Location now comes from the parent (AdminDashboard sidebar) so there's one source of truth.
+  const adminLocation = currentLocation;
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [cateringItems, setCateringItems] = useState<CateringMenuItem[]>([]);
@@ -228,7 +233,10 @@ export default function MenuManagement({ onUpdate }: MenuManagementProps) {
           is_available: item.is_available,
           category_id: item.category_id,
           display_order: item.display_order,
-          customization_options: item.customization_options || {}
+          customization_options: item.customization_options || {},
+          allow_protein_additions: item.allow_protein_additions || false,
+          base_ingredients: item.base_ingredients || [],
+          non_removable_ingredients: (item as any).non_removable_ingredients || [],
         })
         .eq('id', item.id);
 
@@ -471,33 +479,7 @@ export default function MenuManagement({ onUpdate }: MenuManagementProps) {
         </button>
       </div>
 
-      <div className="bg-orange-50 border-2 border-orange-300 p-3 rounded-lg">
-        <div className="text-xs font-semibold uppercase text-orange-700 mb-2">You are editing the menu for:</div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setAdminLocation('location1')}
-            className={`flex-1 px-4 py-3 rounded-lg font-bold transition-colors ${
-              adminLocation === 'location1'
-                ? 'bg-orange-500 text-white shadow'
-                : 'bg-white text-gray-700 hover:bg-orange-100'
-            }`}
-          >
-            🍽️ Oak Park
-          </button>
-          <button
-            onClick={() => setAdminLocation('location2')}
-            className={`flex-1 px-4 py-3 rounded-lg font-bold transition-colors ${
-              adminLocation === 'location2'
-                ? 'bg-orange-500 text-white shadow'
-                : 'bg-white text-gray-700 hover:bg-orange-100'
-            }`}
-          >
-            🍽️ Redford
-          </button>
-        </div>
-      </div>
-
-      <div className="flex gap-4 bg-gray-100 p-2 rounded-lg">
+<div className="flex gap-4 bg-gray-100 p-2 rounded-lg">
         <button
           onClick={() => setMenuType('pickup')}
           className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
@@ -638,6 +620,73 @@ export default function MenuManagement({ onUpdate }: MenuManagementProps) {
                         rows={2}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-gray-900"
                       />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Ingredients</label>
+                      <p className="text-xs text-gray-500 mb-2">Type each ingredient and press Enter. These will appear in the customer's customization options. For non-removable items (like the tortilla), just mention them in the Description above.</p>
+                      <input
+                        type="text"
+                        placeholder="Type an ingredient and press Enter..."
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const value = (e.target as HTMLInputElement).value.trim();
+                            if (!value) return;
+                            const current = item.base_ingredients || [];
+                            if (current.includes(value)) {
+                              (e.target as HTMLInputElement).value = '';
+                              return;
+                            }
+                            const updated = menuItems.map(i =>
+                              i.id === item.id ? { ...i, base_ingredients: [...current, value] } : i
+                            );
+                            setMenuItems(updated);
+                            (e.target as HTMLInputElement).value = '';
+                          }
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-gray-900 mb-2"
+                      />
+                      <div className="flex flex-wrap gap-2">
+                        {(item.base_ingredients || []).map((ing, idx) => (
+                          <span key={idx} className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm bg-orange-100 text-orange-700 border border-orange-300">
+                            {ing}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const current = item.base_ingredients || [];
+                                const updated = menuItems.map(i =>
+                                  i.id === item.id ? { ...i, base_ingredients: current.filter(c => c !== ing) } : i
+                                );
+                                setMenuItems(updated);
+                              }}
+                              className="text-red-600 hover:text-red-800 font-bold ml-1"
+                              title="Remove ingredient"
+                            >
+                              ✕
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                      {(item.base_ingredients || []).length === 0 && (
+                        <p className="text-xs text-gray-400 italic mt-1">No ingredients added yet.</p>
+                      )}
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={item.allow_protein_additions || false}
+                          onChange={(e) => {
+                            const updated = menuItems.map(i =>
+                              i.id === item.id ? { ...i, allow_protein_additions: e.target.checked } : i
+                            );
+                            setMenuItems(updated);
+                          }}
+                          className="w-4 h-4 accent-orange-500"
+                        />
+                        <span className="text-sm font-medium text-gray-700">Allow protein/add-on customization (customers can add these to their order)</span>
+                      </label>
+                      <p className="text-xs text-gray-500 mt-1 ml-6">If unchecked, the add-ons below won't appear on the customer-facing menu.</p>
                     </div>
                     <div className="md:col-span-2">
                       <label className="block text-sm font-medium text-gray-700 mb-2">Add-on Options (with prices)</label>

@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useLocation } from './LocationContext';
 import { supabase } from '../lib/supabase';
 
 export interface CartItem {
@@ -34,16 +35,16 @@ interface CartContextType {
   appliedDiscounts: AppliedDiscount[];
   totalSavings: number;
   locationId: string;
-  setLocationId: (id: string) => void;
   activeDiscounts: any[];
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
-export function CartProvider({ children, initialLocationId = 'location1' }: { children: ReactNode; initialLocationId?: string }) {
+export function CartProvider({ children }: { children: ReactNode }) {
+  const { selectedLocation } = useLocation();
+  const locationId = selectedLocation.id;
   const [cart, setCart] = useState<CartItem[]>([]);
   const [allDiscounts, setAllDiscounts] = useState<any[]>([]);
-  const [locationId, setLocationId] = useState(initialLocationId);
 
   useEffect(() => {
     const fetchDiscounts = async () => {
@@ -152,7 +153,7 @@ export function CartProvider({ children, initialLocationId = 'location1' }: { ch
     <CartContext.Provider value={{
       cart, addToCart, removeFromCart, updateQuantity, clearCart,
       cartTotal, discountedTotal, appliedDiscounts, totalSavings,
-      locationId, setLocationId, activeDiscounts,
+      locationId, activeDiscounts,
     }}>
       {children}
     </CartContext.Provider>

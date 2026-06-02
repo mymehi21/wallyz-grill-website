@@ -1789,15 +1789,16 @@ export default function AdminDashboard({ onLogout, adminUser }: AdminDashboardPr
           </div>
 
           <div className="p-6">
-            {loading ? (
-              <div className="text-center text-gray-400 py-12">Loading...</div>
-            ) : (
-              <>
+            {/* Always render content. Show subtle indicator while loading instead of unmounting (which was resetting children's state). */}
+            {loading && (
+              <div className="text-xs text-gray-500 mb-2">Refreshing…</div>
+            )}
+            <>
                 {activeTab === 'orders' && renderOrders()}
                 {activeTab === 'catering' && renderCatering()}
                 {activeTab === 'jobs' && renderJobApplications()}
                 {activeTab === 'reviews' && renderReviews()}
-                {activeTab === 'menu' && <MenuManagement onUpdate={fetchAllData} />}
+                {activeTab === 'menu' && <MenuManagement onUpdate={fetchAllData} currentLocation={selectedLocationId} />}
                 {activeTab === 'deleted' && renderDeletedItems()}
                 {activeTab === 'hours' && renderHours()}
                 {activeTab === 'activity' && <ActivityDashboard />}
@@ -1805,7 +1806,6 @@ export default function AdminDashboard({ onLogout, adminUser }: AdminDashboardPr
                 {activeTab === 'restaurant-accounts' && <RestaurantAccounts isSuperAdmin={isSuperAdmin} />}
                 {activeTab === 'superadmin' && isSuperAdmin && <SuperAdminPanel />}
               </>
-            )}
           </div>
         </div>
       </div>

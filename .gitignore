@@ -22,3 +22,7 @@ dist-ssr
 .env
 .env
 dist/
+
+# Build artifacts that sometimes leak to project root
+/assets/
+supabase/.temp/

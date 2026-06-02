@@ -75,19 +75,27 @@ serve(async (req) => {
     // The order is only created after payment succeeds (via verify-payment function).
     // This prevents ghost orders appearing on the device before payment.
 
-    const lineItems = cart.map(item => ({
-      name: item.name,
-      price: Math.round(item.price * 100),
-      unitQty: item.quantity || 1,
-      ...(
-        (item.customizations?.add?.length || item.customizations?.remove?.length) ? {
-          note: [
-            item.customizations?.add?.length ? `Add: ${item.customizations.add.join(', ')}` : '',
-            item.customizations?.remove?.length ? `Remove: ${item.customizations.remove.join(', ')}` : '',
-          ].filter(Boolean).join(' | ')
-        } : {}
-      ),
-    }));
+    // Expand quantities into separate line items so Clover printers display
+    // each unit on its own line (e.g. 2x Chicken Quesadilla = 2 separate lines).
+    // The website-side admin dashboard / receipt still displays grouped quantities
+    // because that is driven by pickup_order_items in Supabase, not this.
+    const lineItems = cart.flatMap(item => {
+      const qty = Math.max(1, item.quantity || 1);
+      const baseLine = {
+        name: item.name,
+        price: Math.round(item.price * 100),
+        unitQty: 1,
+        ...(
+          (item.customizations?.add?.length || item.customizations?.remove?.length) ? {
+            note: [
+              item.customizations?.add?.length ? `Add: ${item.customizations.add.join(', ')}` : '',
+              item.customizations?.remove?.length ? `Remove: ${item.customizations.remove.join(', ')}` : '',
+            ].filter(Boolean).join(' | ')
+          } : {}
+        ),
+      };
+      return Array.from({ length: qty }, () => ({ ...baseLine }));
+    });
 
     // Apply discount by scaling each line item price proportionally
     const subtotalCents = lineItems.reduce((s, li) => s + (li.price * li.unitQty), 0);

@@ -1,7 +1,6 @@
 import { MapPin } from 'lucide-react';
 import { useLocation } from '../contexts/LocationContext';
 import Logo from './Logo';
-import { useCart } from '../contexts/CartContext';
 
 interface HeroProps {
   onNavigate: (page: string) => void;
@@ -9,7 +8,6 @@ interface HeroProps {
 
 export default function Hero({ onNavigate }: HeroProps) {
   const { selectedLocation, locations, setSelectedLocation } = useLocation();
-  const { setLocationId } = useCart();
 
   return (
     <section id="home" className="relative min-h-screen flex items-center justify-center text-white pt-20 overflow-hidden">
@@ -60,7 +58,7 @@ export default function Hero({ onNavigate }: HeroProps) {
               value={selectedLocation.id}
               onChange={(e) => {
                 const location = locations.find(loc => loc.id === e.target.value);
-                if (location) { setSelectedLocation(location); setLocationId(location.id); }
+                if (location) setSelectedLocation(location);
               }}
               className="w-full bg-gray-900/80 border border-orange-500/50 text-white rounded-lg px-4 py-3 focus:outline-none focus:border-orange-500 cursor-pointer"
             >
