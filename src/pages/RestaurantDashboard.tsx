@@ -186,6 +186,9 @@ export default function RestaurantDashboard({ account, onLogout }: RestaurantDas
     stopAlert();
     setPendingOrders(prev => prev.filter(o => o.id !== order.id));
     setConfirmedOrders(prev => [{ ...order, confirmed_at: now }, ...prev]);
+    // Auto-print the kitchen ticket. Worker still has the manual Print button
+    // for reprints if needed (e.g. paper jam, lost ticket).
+    try { printOrder(order); } catch (e) { console.error('Auto-print failed:', e); }
   };
 
   const deleteOrder = async (order: AnyOrder) => {
@@ -221,16 +224,83 @@ export default function RestaurantDashboard({ account, onLogout }: RestaurantDas
     if (!win) { window.print(); return; }
     const o = order as any;
     const orderNum = order.id?.slice(-6).toUpperCase();
+    const totalItems = (o.order_items || []).reduce((s: number, i: any) => s + (i.quantity || 1), 0);
+    const pickupTime = o.pickup_time || 'ASAP';
     win.document.write(`
-      <html><head><title>Order #${orderNum}</title>
-      <style>body{font-family:monospace;font-size:14px;padding:20px;max-width:400px;}.row{display:flex;justify-content:space-between;margin:4px 0;}.section{border-top:1px dashed #000;margin-top:10px;padding-top:10px;}.total{font-weight:bold;font-size:16px;}@media print{button{display:none;}}</style>
+      <html><head><title>Kitchen Ticket #${orderNum}</title>
+      <style>
+        @page { size: 80mm auto; margin: 0; }
+        @media print { html, body { margin: 0; padding: 0; } button { display: none; } }
+        body { font-family: 'Courier New', Courier, monospace; font-size: 13px; padding: 6mm 4mm; width: 72mm; color: #000; line-height: 1.35; }
+        .center { text-align: center; }
+        .bold { font-weight: 900; }
+        .big { font-size: 18px; font-weight: 900; }
+        .huge { font-size: 26px; font-weight: 900; }
+        .divider { border-top: 2px dashed #000; margin: 8px 0; }
+        .item { margin-top: 8px; }
+        .item-line { font-size: 15px; font-weight: 900; }
+        .cust { font-size: 13px; margin-left: 12px; }
+        .footer { margin-top: 14px; }
+        .spacer { height: 18mm; }
+      </style>
       </head><body>
-      <h2 style="text-align:center">WALLYZ GRILL — ${account.location_name.toUpperCase()}</h2>
-      <p style="text-align:center">ORDER #${orderNum} | 🥡 PICKUP</p>
-      <p style="text-align:center">${new Date(order.created_at).toLocaleString()}</p>
+      <div class="center bold big">WALLYZ GRILL</div>
+      <div class="center bold">*** ${account.location_name.toUpperCase()} ***</div>
+      <div class="divider"></div>
+      <div class="center bold">NEW ONLINE ORDER</div>
+      <div style="margin-top:6px">CUSTOMER: <span class="bold">${o.customer_name}</span></div>
+      <div>PHONE: ${o.customer_phone || ''}</div>
+      <div class="divider"></div>
+      <div class="center bold">******* PICKUP *******</div>
+      <div class="center huge">${pickupTime}</div>
+      <div style="margin-top:8px">ORDER #: ${orderNum}</div>
+      <div>PLACED: ${new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+      <div class="divider"></div>
+      <div class="center bold">ITEMS</div>
+      <div class="divider"></div>
+      ${(o.order_items || []).map((item: any) => `
+        <div class="item">
+          <div class="item-line">[${item.quantity || 1}x] ${(item.name || '').toUpperCase()}</div>
+          ${item.customizations?.add?.length ? `<div class="cust">-- Add: ${item.customizations.add.join(', ')}</div>` : ''}
+          ${item.customizations?.remove?.length ? `<div class="cust">-- Remove: ${item.customizations.remove.join(', ')}</div>` : ''}
+        </div>
+      `).join('')}
+      ${o.special_instructions ? `<div class="divider"></div><div><b>NOTES:</b> ${o.special_instructions}</div>` : ''}
+      <div class="divider"></div>
+      <div class="center bold">${totalItems} ITEM${totalItems !== 1 ? 'S' : ''} TOTAL</div>
+      <div class="divider"></div>
+      <div class="spacer"></div>
+      <script>window.onload=function(){setTimeout(function(){window.print();setTimeout(function(){window.close();},500);},200);}<\/script>
+      </body></html>
+    `);
+    win.document.close();
+  };
+
+  const printReceipt = (order: AnyOrder) => {
+    const win = window.open('', '_blank');
+    if (!win) { window.print(); return; }
+    const o = order as any;
+    const orderNum = order.id?.slice(-6).toUpperCase();
+    win.document.write(`
+      <html><head><title>Receipt #${orderNum}</title>
+      <style>
+        @page { size: 80mm auto; margin: 0; }
+        @media print { html, body { margin: 0; padding: 0; } button { display: none; } }
+        body { font-family: 'Courier New', Courier, monospace; font-size: 13px; padding: 6mm 4mm; width: 72mm; color: #000; line-height: 1.4; }
+        .row { display: flex; justify-content: space-between; margin: 4px 0; }
+        .section { border-top: 1px dashed #000; margin-top: 10px; padding-top: 10px; }
+        .total { font-weight: bold; font-size: 16px; }
+        .center { text-align: center; }
+        .spacer { height: 18mm; }
+      </style>
+      </head><body>
+      <h2 class="center" style="margin:0">WALLYZ GRILL</h2>
+      <p class="center" style="margin:2px 0">${account.location_name.toUpperCase()}</p>
+      <p class="center" style="margin:2px 0">RECEIPT</p>
+      <p class="center" style="margin:2px 0">ORDER #${orderNum}</p>
+      <p class="center" style="margin:2px 0">${new Date(order.created_at).toLocaleString()}</p>
       <div class="section">
         <div class="row"><span>Customer:</span><span>${o.customer_name}</span></div>
-        <div class="row"><span>Phone:</span><span>${o.customer_phone}</span></div>
         <div class="row"><span>Pickup:</span><span>${o.pickup_time || 'ASAP'}</span></div>
       </div>
       <div class="section"><p><b>Items:</b></p>
@@ -242,7 +312,9 @@ export default function RestaurantDashboard({ account, onLogout }: RestaurantDas
       </div>
       ${o.special_instructions ? `<div class="section"><b>Notes:</b> ${o.special_instructions}</div>` : ''}
       <div class="section row total"><span>TOTAL:</span><span>$${Number(o.total_amount).toFixed(2)}</span></div>
-      <script>window.onload=function(){window.print();window.close();}<\/script>
+      <p class="center" style="margin-top:10px">Thank you for your order!</p>
+      <div class="spacer"></div>
+      <script>window.onload=function(){setTimeout(function(){window.print();setTimeout(function(){window.close();},500);},200);}<\/script>
       </body></html>
     `);
     win.document.close();
@@ -309,7 +381,10 @@ export default function RestaurantDashboard({ account, onLogout }: RestaurantDas
           ) : (
             <>
               <button onClick={() => printOrder(order)} className="flex-1 py-3 flex items-center justify-center gap-2 text-gray-400 hover:text-white hover:bg-gray-800 transition-colors text-sm">
-                <Printer size={16} /> Print
+                <Printer size={16} /> Order
+              </button>
+              <button onClick={() => printReceipt(order)} className="flex-1 py-3 flex items-center justify-center gap-2 text-gray-400 hover:text-white hover:bg-gray-800 transition-colors text-sm">
+                <Printer size={16} /> Receipt
               </button>
               {!isConfirmed && (
                 <button onClick={() => confirmOrder(order)} className="flex-1 py-3 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white font-bold transition-colors text-sm">

@@ -245,28 +245,10 @@ serve(async (req) => {
         body: JSON.stringify({ state: 'locked' }),
       });
 
-      // ── Fire print request ─────────────────────────────────────────
-      // /fire is what Clover's own online ordering uses to trigger printing
-      const fireRes = await fetch(`${CLOVER_API}/v3/merchants/${merchantId}/orders/${cloverOrderId}/fire`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${apiToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
-      });
-      if (fireRes.ok) {
-        console.log('Fire/print request sent successfully');
-      } else {
-        // Fallback: try print_event
-        const printRes = await fetch(`${CLOVER_API}/v3/merchants/${merchantId}/print_event`, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${apiToken}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderRef: { id: cloverOrderId } }),
-        });
-        if (printRes.ok) {
-          console.log('Print event sent successfully');
-        } else {
-          console.error('Both fire and print_event failed:', await printRes.text());
-        }
-      }
+      // Auto-print to Clover removed by design.
+      // Kitchen tickets now print from our Star printer connected to the
+      // Restaurant Dashboard tablet. If the Star printer fails, workers can
+      // pull the order up on Clover and tap Print manually.
     }
 
     // ── Set final DB status ─────────────────────────────────────────
