@@ -56,8 +56,39 @@ serve(async (req) => {
     const payload: Payload = await req.json();
     const {
       location_id, customer_name, customer_phone, customer_email,
-      pickup_time, special_instructions, cart, order_db_id
+      pickup_time, special_instructions, order_db_id
     } = payload;
+    let cart = payload.cart;
+
+    // ── Read cart from DB to ensure single source of truth ─────────────
+    // The payload cart can diverge from the DB if the customer modifies
+    // their cart between order save (step 1) and pay click (step 2).
+    // The DB row is the snapshot we MUST send to Clover so the customer
+    // is charged for exactly what we have on file.
+    try {
+      const supabaseAdmin = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      );
+      const { data: dbOrder, error: dbErr } = await supabaseAdmin
+        .from('pickup_orders')
+        .select('order_items')
+        .eq('id', order_db_id)
+        .single();
+      if (dbErr) {
+        console.error('[CART SOURCE] DB read failed, using payload cart:', dbErr.message);
+      } else if (dbOrder?.order_items) {
+        const payloadCount = (payload.cart || []).length;
+        const dbCount = (dbOrder.order_items as any[]).length;
+        if (payloadCount !== dbCount) {
+          console.warn(`[CART SOURCE] DIVERGENCE: payload had ${payloadCount} items, DB has ${dbCount}. Using DB as source of truth.`);
+        }
+        cart = dbOrder.order_items as CartItem[];
+        console.log('[CART SOURCE] Using DB cart with', cart.length, 'items');
+      }
+    } catch (e) {
+      console.error('[CART SOURCE] Exception reading DB, using payload cart:', e);
+    }
 
     const creds = getLocationCredentials(location_id);
     if (!creds) {
@@ -144,6 +175,7 @@ serve(async (req) => {
 
     console.log('Creating checkout session for order:', order_db_id);
     console.log('Merchant ID:', merchantId);
+    console.log('[FINAL LINE ITEMS]', JSON.stringify(adjustedLineItems));
     console.log('Checkout body:', JSON.stringify(checkoutBody));
 
     const checkoutRes = await fetch(`${CLOVER_API}/invoicingcheckoutservice/v1/checkouts`, {

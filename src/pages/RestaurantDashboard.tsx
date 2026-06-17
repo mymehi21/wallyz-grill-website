@@ -186,9 +186,6 @@ export default function RestaurantDashboard({ account, onLogout }: RestaurantDas
     stopAlert();
     setPendingOrders(prev => prev.filter(o => o.id !== order.id));
     setConfirmedOrders(prev => [{ ...order, confirmed_at: now }, ...prev]);
-    // Auto-print the kitchen ticket. Worker still has the manual Print button
-    // for reprints if needed (e.g. paper jam, lost ticket).
-    try { printOrder(order); } catch (e) { console.error('Auto-print failed:', e); }
   };
 
   const deleteOrder = async (order: AnyOrder) => {
