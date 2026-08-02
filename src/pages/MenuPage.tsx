@@ -5,6 +5,7 @@ import { useLocation } from '../contexts/LocationContext';
 import { supabase, MenuItem, MenuCategory } from '../lib/supabase';
 import MenuItemCustomizer, { Customization } from '../components/MenuItemCustomizer';
 import { fetchHoursForLocation, isRestaurantOpen, formatHour, BusinessHour } from '../utils/hoursUtils';
+import { getMenuImage } from '../lib/menuImages';
 
 interface MenuPageProps {
   onNavigate: (page: string, itemIdToCustomize?: string) => void;
@@ -244,9 +245,9 @@ export default function MenuPage({ onNavigate, customizeItemId, onCustomizeConsu
                           onClick={() => !selectedLocation.comingSoon && setSelectedItem(item)}
                         >
                           <div className="flex gap-4 items-start">
-                            {item.image_url && (
+                            {(getMenuImage(item.name) || item.image_url) && (
                               <img
-                                src={item.image_url}
+                                src={getMenuImage(item.name) || item.image_url || ''}
                                 alt={item.name}
                                 className="w-24 h-24 object-cover rounded-lg flex-shrink-0"
                               />

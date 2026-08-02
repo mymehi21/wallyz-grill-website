@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Plus, Minus, X } from 'lucide-react';
+import { getMenuImage } from '../lib/menuImages';
 
 interface MenuItem {
   id: string;
@@ -31,6 +32,7 @@ export default function MenuItemCustomizer({ item, onAddToCart, onClose }: MenuI
   const [removedIngredients, setRemovedIngredients] = useState<string[]>([]);
   const [addedProteins, setAddedProteins] = useState<Array<{ name: string; price: number }>>([]);
   const [showFullImage, setShowFullImage] = useState(false);
+  const imageSrc = getMenuImage(item.name) || item.image_url || null;
 
   const toggleIngredient = (ingredient: string) => {
     setRemovedIngredients(prev =>
@@ -78,10 +80,10 @@ export default function MenuItemCustomizer({ item, onAddToCart, onClose }: MenuI
           </button>
         </div>
 
-        {item.image_url && (
+        {imageSrc && (
           <div className="px-6 pt-6">
             <img
-              src={item.image_url}
+              src={imageSrc}
               alt={item.name}
               className="w-full max-h-80 object-contain rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
               onClick={() => setShowFullImage(true)}
@@ -90,7 +92,7 @@ export default function MenuItemCustomizer({ item, onAddToCart, onClose }: MenuI
           </div>
         )}
 
-        {showFullImage && item.image_url && (
+        {showFullImage && imageSrc && (
           <div
             className="fixed inset-0 bg-black bg-opacity-95 z-[100] flex items-center justify-center p-4"
             onClick={() => setShowFullImage(false)}
@@ -102,7 +104,7 @@ export default function MenuItemCustomizer({ item, onAddToCart, onClose }: MenuI
               <X size={32} />
             </button>
             <img
-              src={item.image_url}
+              src={imageSrc}
               alt={item.name}
               className="max-w-full max-h-full object-contain rounded-lg"
               onClick={(e) => e.stopPropagation()}
