@@ -219,21 +219,25 @@ serve(async (req) => {
           item.customizations?.remove?.length ? `Remove: ${item.customizations.remove.join(', ')}` : '',
         ].filter(Boolean).join(' | ');
 
-        const lineRes = await fetch(`${CLOVER_API}/v3/merchants/${merchantId}/orders/${cloverOrderId}/line_items`, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${apiToken}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: item.name,
-            price: Math.round(item.price * 100),
-            unitQty: (item.quantity || 1) * 1000,
-            ...(note ? { note } : {}),
-          }),
-        });
+        // Post ONE line item per unit so the kitchen ticket shows the real
+        // count (e.g. "2 Wally'z Burger") instead of the "1/1" that unitQty caused.
+        const qty = Math.max(1, Math.round(Number(item.quantity) || 1));
 
-        if (!lineRes.ok) {
-          console.error(`Line item "${item.name}" failed:`, await lineRes.text());
-          cloverSyncFailed = true;
-          // Continue adding remaining items even if one fails
+        for (let unit = 0; unit < qty; unit++) {
+          const lineRes = await fetch(`${CLOVER_API}/v3/merchants/${merchantId}/orders/${cloverOrderId}/line_items`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${apiToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: item.name,
+              price: Math.round(item.price * 100),
+              ...(note ? { note } : {}),
+            }),
+          });
+
+          if (!lineRes.ok) {
+            console.error(`Line item "${item.name}" (unit ${unit + 1}/${qty}) failed:`, await lineRes.text());
+            cloverSyncFailed = true;
+          }
         }
       }
 

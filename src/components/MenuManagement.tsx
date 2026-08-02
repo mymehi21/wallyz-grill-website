@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Save, X, Eye, EyeOff, Edit2, Trash2, Upload, Image as ImageIcon } from 'lucide-react';
+import { Plus, Save, X, Eye, EyeOff, Edit2, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import ConfirmDialog from './ConfirmDialog';
 
@@ -52,7 +52,6 @@ export default function MenuManagement({ onUpdate, currentLocation }: MenuManage
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [uploadingImage, setUploadingImage] = useState<string | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
     title: string;
@@ -382,78 +381,7 @@ export default function MenuManagement({ onUpdate, currentLocation }: MenuManage
     await fetchData();
   };
 
-  const handleImageUpload = async (itemId: string, file: File, isPickup: boolean) => {
-    try {
-      setUploadingImage(itemId);
 
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${itemId}-${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('menu-images')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: true
-        });
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('menu-images')
-        .getPublicUrl(filePath);
-
-      if (isPickup) {
-        const item = menuItems.find(i => i.id === itemId);
-        if (item) {
-          await handleUpdatePickupItem({ ...item, image_url: publicUrl });
-        }
-      } else {
-        const item = cateringItems.find(i => i.id === itemId);
-        if (item) {
-          await handleUpdateCateringItem({ ...item, image_url: publicUrl });
-        }
-      }
-
-      await fetchData();
-      alert('Image uploaded successfully!');
-    } catch (error) {
-      console.error('Error uploading image:', error);
-      alert('Failed to upload image');
-    } finally {
-      setUploadingImage(null);
-    }
-  };
-
-  const handleDeleteImage = async (itemId: string, imageUrl: string | null, isPickup: boolean) => {
-    if (!imageUrl) return;
-
-    try {
-      const fileName = imageUrl.split('/').pop();
-      if (fileName) {
-        await supabase.storage
-          .from('menu-images')
-          .remove([fileName]);
-      }
-
-      if (isPickup) {
-        const item = menuItems.find(i => i.id === itemId);
-        if (item) {
-          await handleUpdatePickupItem({ ...item, image_url: null });
-        }
-      } else {
-        const item = cateringItems.find(i => i.id === itemId);
-        if (item) {
-          await handleUpdateCateringItem({ ...item, image_url: null });
-        }
-      }
-
-      await fetchData();
-    } catch (error) {
-      console.error('Error deleting image:', error);
-      alert('Failed to delete image');
-    }
-  };
 
   const filteredPickupItems = selectedCategory === 'all'
     ? menuItems
@@ -754,59 +682,6 @@ export default function MenuManagement({ onUpdate, currentLocation }: MenuManage
                         </button>
                       </div>
                     </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Image</label>
-                      <div className="space-y-3">
-                        {item.image_url && (
-                          <div className="relative inline-block">
-                            <img
-                              src={item.image_url}
-                              alt={item.name}
-                              className="w-32 h-32 object-cover rounded-lg border-2 border-gray-300"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteImage(item.id, item.image_url, true)}
-                              className="absolute -top-2 -right-2 p-1 bg-red-600 text-white rounded-full hover:bg-red-700"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                        )}
-                        <div className="flex items-center gap-3">
-                          <input
-                            type="file"
-                            accept="image/*"
-                            id={`upload-${item.id}`}
-                            className="hidden"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                handleImageUpload(item.id, file, true);
-                              }
-                            }}
-                          />
-                          <label
-                            htmlFor={`upload-${item.id}`}
-                            className={`flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer ${
-                              uploadingImage === item.id ? 'opacity-50 cursor-not-allowed' : ''
-                            }`}
-                          >
-                            {uploadingImage === item.id ? (
-                              <>
-                                <Upload className="w-4 h-4 animate-pulse" />
-                                Uploading...
-                              </>
-                            ) : (
-                              <>
-                                <Upload className="w-4 h-4" />
-                                {item.image_url ? 'Change Image' : 'Upload Image'}
-                              </>
-                            )}
-                          </label>
-                        </div>
-                      </div>
-                    </div>
                   </div>
                   <div className="flex justify-end gap-3">
                     <button
@@ -968,59 +843,6 @@ export default function MenuManagement({ onUpdate, currentLocation }: MenuManage
                         rows={2}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-gray-900"
                       />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Image</label>
-                      <div className="space-y-3">
-                        {item.image_url && (
-                          <div className="relative inline-block">
-                            <img
-                              src={item.image_url}
-                              alt={item.name}
-                              className="w-32 h-32 object-cover rounded-lg border-2 border-gray-300"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteImage(item.id, item.image_url, false)}
-                              className="absolute -top-2 -right-2 p-1 bg-red-600 text-white rounded-full hover:bg-red-700"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                        )}
-                        <div className="flex items-center gap-3">
-                          <input
-                            type="file"
-                            accept="image/*"
-                            id={`upload-catering-${item.id}`}
-                            className="hidden"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                handleImageUpload(item.id, file, false);
-                              }
-                            }}
-                          />
-                          <label
-                            htmlFor={`upload-catering-${item.id}`}
-                            className={`flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer ${
-                              uploadingImage === item.id ? 'opacity-50 cursor-not-allowed' : ''
-                            }`}
-                          >
-                            {uploadingImage === item.id ? (
-                              <>
-                                <Upload className="w-4 h-4 animate-pulse" />
-                                Uploading...
-                              </>
-                            ) : (
-                              <>
-                                <Upload className="w-4 h-4" />
-                                {item.image_url ? 'Change Image' : 'Upload Image'}
-                              </>
-                            )}
-                          </label>
-                        </div>
-                      </div>
                     </div>
                   </div>
                   <div className="flex justify-end gap-3">
